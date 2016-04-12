@@ -1,0 +1,22 @@
+<h3>{{ _('Pushover Configuration') }}</h3>
+
+{% trans %}<p>
+    In order to use the Pushover plugin, you need to configure your Pushover
+    Access Token below. You can find those in
+    <a href="https://pushover.net/" target="_blank">your Pushover account settings</a>.
+</p>{% endtrans %}
+
+<form class="form-horizontal">
+    <div class="control-group">
+        <label class="control-label">{{ _('API Token/Key') }}</label>
+        <div class="controls">
+            <input type="text" class="input-block-level" data-bind="value: settings.plugins.pushover.api_token">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label">{{ _('User Key') }}</label>
+        <div class="controls">
+            <input type="text" class="input-block-level" data-bind="value: settings.plugins.pushover.user_key">
+        </div>
+    </div>
+</form>
