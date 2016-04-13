@@ -1,2 +1,2 @@
 # OctoPrint-Pushover
-Pushover plugin for octoprin
+Pushover plugin for octoprint

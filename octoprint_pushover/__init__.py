@@ -14,71 +14,42 @@ __plugin_name__ = "Pushover"
 
 
 class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
-                     octoprint.plugin.SettingsPlugin,
-                     octoprint.plugin.StartupPlugin,
-                     octoprint.plugin.TemplatePlugin):
-
-	api_token = ""
+					 octoprint.plugin.SettingsPlugin,
+					 octoprint.plugin.StartupPlugin,
+					 octoprint.plugin.TemplatePlugin):
 	user_key = ""
+	api_url = "api.pushover.net:443"
 
-	def _validate_pushover(self, api_token, user_key):
-		if api_token and user_key:
-			self.api_token = api_token
-			self.user_key = user_key
+	def validate_pushover(self, user_key):
+		if not user_key:
+			self._logger.exception("No user key provided")
+			return False
 
-			try:
-				self._conn = httplib.HTTPSConnection("api.pushover.net:443")
-				self._conn.request("POST", "/1/users/validate.json",
-					self._create_payload({}), {"Content-type": "application/x-www-form-urlencoded"})
-				HTTPResponse = self._conn.getresponse()
+		self.user_key = user_key
+		try:
+			HTTPResponse = self.send("users/validate.json", self.create_payload({}))
 
-				response = json.loads(HTTPResponse.read())
+			if not HTTPResponse:
+				self._logger.exception("HTTPResponse is false")
 
-				if HTTPResponse.getheader('status').startswith('400'):
-					self._logger.exception("Error while instantiating Pushover, %s" % response['errors'])
-					return False
-				elif not HTTPResponse.getheader('status').startswith('200'):
-					self._logger.exception("Error while instantiating Pushover, header %s" % HTTPResponse.getheader('status'))
-					return False
-
-				if response['status'] == 1:
-					self._logger.info("Connected to Pushover")
-					return True
-
-			except Exception, e:
-				self._logger.exception("Error while instantiating Pushover: %s" % str(e))
+			if HTTPResponse.getheader("status").startswith("40"):
+				self._logger.exception("Error while instantiating Pushover, header %s" % HTTPResponse.getheader("status"))
+				return False
+			elif not HTTPResponse.getheader("status").startswith("200"):
+				self._logger.exception(
+					"error while instantiating Pushover, header %s" % HTTPResponse.getheader("status"))
 				return False
 
+			response = json.loads(HTTPResponse.read())
+
+			if response["status"] == 1:
+				self._logger.info("Connected to Pushover")
+				return True
+
+		except Exception, e:
+			self._logger.exception("error while instantiating Pushover: %s" % str(e))
+
 		return False
-
-	def on_after_startup(self):
-		self._validate_pushover(self._settings.get(["api_token"]), self._settings.get(["user_key"]))
-
-	def on_settings_save(self, data):
-		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
-
-		import threading
-		thread = threading.Thread(target=self._validate_pushover, args=(
-			self._settings.get(["api_token"]), self._settings.get(["user_key"]),))
-		thread.daemon = True
-		thread.start()
-
-	def get_settings_defaults(self):
-		return dict(
-			api_token=None,
-			user_key=None,
-			printDone=dict(
-				title="Print job finished ",
-				body="{file} finished printing in {elapsed_time}"
-			)
-		)
-
-	def get_template_configs(self):
-		return [
-			dict(type="settings", name="Pushover", custom_bindings=False)
-		]
-
-	# ~~ EventHandlerPlugin
 
 	def on_event(self, event, payload):
 		if event == Events.PRINT_DONE:
@@ -89,14 +60,38 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			import octoprint.util
 			elapsed_time = octoprint.util.get_formatted_timedelta(datetime.timedelta(seconds=elapsed_time_in_seconds))
 
-			title = self._settings.get(["printDone", "title"]).format(**locals())
-			body = self._settings.get(["printDone", "body"]).format(**locals())
+			# Create the message
+			payload["message"] = self._settings.get(["printDone", "message"]).format(**locals())
 
-			self._send_note(title + body)
+			# If no sound parameter is specified, the user"s default tone will play.
+			# If the user has not chosen a custom sound, the standard Pushover sound will play.
+			sound = self._settings.get(["sound"])
+			if sound:
+				payload["sound"] = sound
 
-	def _create_payload(self, create_payload):
+			# By default, messages have normal priority (a priority of 0).
+			# We do not support the Emergency Priority (2) because there is no way of canceling it here,
+			# and besides, when a print is done it is not that important.
+			priority = self._settings.get(["priority"])
+			if priority:
+				payload["priority"] = priority
+
+			self.send("messages.json", self.create_payload(payload))
+
+	def on_after_startup(self):
+		self.validate_pushover(self._settings.get(["user_key"]))
+
+	def on_settings_save(self, data):
+		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+
+		import threading
+		thread = threading.Thread(target=self.validate_pushover, args=(self._settings.get(["user_key"]),))
+		thread.daemon = True
+		thread.start()
+
+	def create_payload(self, create_payload):
 		x = {
-			"token": self.api_token,
+			"token": self._settings.get(["api_token"]),
 			"user": self.user_key
 		}
 
@@ -105,23 +100,31 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		return urllib.urlencode(new_payload)
 
-	def _send_note(self, message):
-		if not self._conn:
-			return
+	def send(self, uri, payload):
 		try:
-			self._conn = httplib.HTTPSConnection("api.pushover.net:443")
-			self._conn.request("POST", "/1/messages.json",
-				self._create_payload({
-					"message": message,
-				}), {"Content-type": "application/x-www-form-urlencoded"})
-			self._conn.getresponse()
-
+			conn = httplib.HTTPSConnection(self.api_url)
+			conn.request("POST", "/1/" + uri, payload, {"Content-type": "application/x-www-form-urlencoded"})
+			return conn.getresponse()
 		except Exception, e:
-			self._logger.exception("Error while instantiating Pushover: %s" % str(e))
+			self._logger.exception("error while instantiating Pushover: %s" % str(e))
 			return False
-		return True
 
-	##~~ Softwareupdate hook
+	def get_settings_defaults(self):
+		return dict(
+			api_token="aY8c1fWze8A2USNavDeZLDEERCwVNn",
+			user_key=None,
+			priority=0,
+			sound=None,
+			printDone=dict(
+				message="Print job finished {file} finished printing in {elapsed_time}"
+			)
+		)
+
+	def get_template_configs(self):
+		return [
+			dict(type="settings", name="Pushover", custom_bindings=False)
+		]
+
 	def get_update_information(self):
 		return dict(
 			octobullet=dict(
@@ -141,6 +144,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 
 __plugin_name__ = "Pushover"
+
+
 def __plugin_load__():
 	global __plugin_implementation__
 	__plugin_implementation__ = PushoverPlugin()
@@ -149,4 +154,3 @@ def __plugin_load__():
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
 	}
-

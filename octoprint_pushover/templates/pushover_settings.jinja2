@@ -2,15 +2,26 @@
 
 {% trans %}<p>
     In order to use the Pushover plugin, you need to configure your Pushover
-    Access Token below. You can find those in
+    user key below. You can find those in
     <a href="https://pushover.net/" target="_blank">your Pushover account settings</a>.
 </p>{% endtrans %}
 
 <form class="form-horizontal">
     <div class="control-group">
-        <label class="control-label">{{ _('API Token/Key') }}</label>
+        <label class="control-label">{{ _('Sound') }}</label>
         <div class="controls">
-            <input type="text" class="input-block-level" data-bind="value: settings.plugins.pushover.api_token">
+            <input type="text" class="input-block-level" data-bind="value: settings.plugins.pushover.sound">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label">{{ _('Priority') }}</label>
+        <div class="controls">
+            <select data-bind="value: settings.plugins.pushover.priority">
+                <option value="-2">{{ _('Lowest Priority') }}</option>
+                <option value="-1">{{ _('Low Priority') }}</option>
+                <option value="0">{{ _('Normal Priority') }}</option>
+                <option value="1">{{ _('High Priority') }}</option>
+            </select>
         </div>
     </div>
     <div class="control-group">
