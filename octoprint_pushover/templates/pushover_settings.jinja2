@@ -10,7 +10,11 @@
     <div class="control-group">
         <label class="control-label">{{ _('Sound') }}</label>
         <div class="controls">
-            <input type="text" class="input-block-level" data-bind="value: settings.plugins.pushover.sound">
+            <select id="pushover-sound" data-bind="value: settings.plugins.pushover.sound">
+                {% for item in plugin_pushover_sounds -%}
+                    <option value="{{ item }}">{{ item }}</option>
+                {%- endfor %}
+            </select>
         </div>
     </div>
     <div class="control-group">

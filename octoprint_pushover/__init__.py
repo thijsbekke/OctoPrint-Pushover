@@ -27,7 +27,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		self.user_key = user_key
 		try:
-			HTTPResponse = self.send("users/validate.json", self.create_payload({}))
+			HTTPResponse = self.post("users/validate.json", self.create_payload({}))
 
 			if not HTTPResponse:
 				self._logger.exception("HTTPResponse is false")
@@ -76,7 +76,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			if priority:
 				payload["priority"] = priority
 
-			self.send("messages.json", self.create_payload(payload))
+			self.post("messages.json", self.create_payload(payload))
 
 	def on_after_startup(self):
 		self.validate_pushover(self._settings.get(["user_key"]))
@@ -100,13 +100,24 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		return urllib.urlencode(new_payload)
 
-	def send(self, uri, payload):
+	def post(self, uri, payload):
 		try:
 			conn = httplib.HTTPSConnection(self.api_url)
 			conn.request("POST", "/1/" + uri, payload, {"Content-type": "application/x-www-form-urlencoded"})
 			return conn.getresponse()
 		except Exception, e:
 			self._logger.exception("error while instantiating Pushover: %s" % str(e))
+			return False
+
+	def get(self, uri):
+		try:
+			conn = httplib.HTTPSConnection(self.api_url)
+			conn.request("GET", "/1/" + uri + "?token=" + self._settings.get(["api_token"]))
+
+			return conn.getresponse()
+
+		except Exception, e:
+			self._logger.exception("error while getting data from Pushover: %s" % str(e))
 			return False
 
 	def get_settings_defaults(self):
@@ -120,6 +131,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			)
 		)
 
+	def get_template_vars(self):
+		return dict(sounds=self.get_sounds())
+
 	def get_template_configs(self):
 		return [
 			dict(type="settings", name="Pushover", custom_bindings=False)
@@ -127,7 +141,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def get_update_information(self):
 		return dict(
-			octobullet=dict(
+			pushover=dict(
 				displayName="Pushover Plugin",
 				displayVersion=self._plugin_version,
 
@@ -142,6 +156,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			)
 		)
 
+	def get_sounds(self):
+		HTTPResponse = self.get("sounds.json")
+
+		if not HTTPResponse:
+			return
+
+		return json.loads(HTTPResponse.read())["sounds"]
 
 __plugin_name__ = "Pushover"
 
