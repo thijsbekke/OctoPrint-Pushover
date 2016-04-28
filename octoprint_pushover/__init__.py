@@ -63,6 +63,15 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			# Create the message
 			payload["message"] = self._settings.get(["printDone", "message"]).format(**locals())
 
+			# Create an url, if the fqdn is not correct you can manually set it at your config.yaml
+			url = self._settings.get(["url"])
+			if (url):
+				payload["url"] = url
+			else:
+				# Create an url
+				import socket
+				payload["url"] = "http://%s" % socket.getfqdn()
+
 			# If no sound parameter is specified, the user"s default tone will play.
 			# If the user has not chosen a custom sound, the standard Pushover sound will play.
 			sound = self._settings.get(["sound"])
@@ -134,6 +143,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def get_template_vars(self):
 		return dict(sounds=self.get_sounds())
 
+	def get_sounds(self):
+		HTTPResponse = self.get("sounds.json")
+
+		if not HTTPResponse:
+			return
+
+		return json.loads(HTTPResponse.read())["sounds"]
 	def get_template_configs(self):
 		return [
 			dict(type="settings", name="Pushover", custom_bindings=False)
@@ -156,13 +172,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			)
 		)
 
-	def get_sounds(self):
-		HTTPResponse = self.get("sounds.json")
 
-		if not HTTPResponse:
-			return
-
-		return json.loads(HTTPResponse.read())["sounds"]
 
 __plugin_name__ = "Pushover"
 

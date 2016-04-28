@@ -9,11 +9,12 @@ https://github.com/thijsbekke/OctoPrint-Pushover/archive/master.zip
 ```
 ## Configuration
 
-The only thing you have too configure is the user key. You can find your own user key on your [Pushover](https://pushover.net) page. Copy and paste it too the "user key" field in the settings dialog of the Octoprint-Pushover plugin. And then you are done.
+The only thing you have too configure is the user key. You can find your own user key on your [Pushover](https://pushover.net) page. Copy and paste it too the "user key" field in the settings dialog of the Octoprint-Pushover plugin. And then you are done, the rest of the settings are optional.
 
 ## Features
 
-In the settings dialog beside the user key you can specify the priority of the notifications and a sound.
+In the settings dialog beside the user key you can specify the priority of the notifications and a sound. This plugin will also append an url too your octoprint instance with the notification.
+
 
 ### Priority
 
@@ -38,3 +39,16 @@ Messages sent with this priority bypasses a user's quiet hours. These messages w
 ### Sound
 
 You can specify a custom sound, your device will play this sound when receiving a message. You can specify one of [these sounds](https://pushover.net/api#sounds)
+
+### Url
+
+If the automatic created url is not correct you can overrule this by edit the config.yaml
+
+example:
+```
+plugins:
+  pushover:
+    priority: '0'
+    sound: intermission
+    url: 192.168.1.24
+```
