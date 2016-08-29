@@ -18,20 +18,24 @@
         </div>
     </div>
     <div class="control-group">
-        <label class="control-label">{{ _('Priority') }}</label>
-        <div class="controls">
-            <select data-bind="value: settings.plugins.pushover.priority">
-                <option value="-2">{{ _('Lowest Priority') }}</option>
-                <option value="-1">{{ _('Low Priority') }}</option>
-                <option value="0">{{ _('Normal Priority') }}</option>
-                <option value="1">{{ _('High Priority') }}</option>
-            </select>
-        </div>
-    </div>
-    <div class="control-group">
         <label class="control-label">{{ _('User Key') }}</label>
         <div class="controls">
             <input type="text" class="input-block-level" data-bind="value: settings.plugins.pushover.user_key">
         </div>
     </div>
+
+    {% for event, name in plugin_pushover_events.iteritems() %}
+        <div class="control-group">
+            <label class="control-label">{% trans %}{{ name }}{% endtrans %}</label>
+            <div class="controls">
+                <select data-bind="value: settings.plugins.pushover.events.{{ event }}.priority">
+                    <option value="">{{ _('Off') }}</option>
+                    <option value="-2">{{ _('Lowest Priority') }}</option>
+                    <option value="-1">{{ _('Low Priority') }}</option>
+                    <option value="0">{{ _('Normal Priority') }}</option>
+                    <option value="1">{{ _('High Priority') }}</option>
+                </select>
+            </div>
+        </div>
+    {% endfor %}
 </form>
