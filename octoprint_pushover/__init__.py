@@ -134,6 +134,21 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		thread.daemon = True
 		thread.start()
 
+	def on_settings_load(self):
+		data = octoprint.plugin.SettingsPlugin.on_settings_load(self)
+
+		# only return our restricted settings to admin users - this is only needed for OctoPrint <= 1.2.16
+		restricted = ("api_token", "user_key")
+		for r in restricted:
+			if r in data and (current_user is None or current_user.is_anonymous() or not current_user.is_admin()):
+				data[r] = None
+
+		return data
+
+	def get_settings_restricted_paths(self):
+		# only used in OctoPrint versions > 1.2.16
+		return dict(admin=[["api_token"], ["user_key"]])
+
 	def create_payload(self, create_payload):
 		x = {
 			"token": self._settings.get(["api_token"]),
