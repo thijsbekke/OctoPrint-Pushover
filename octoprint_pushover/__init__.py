@@ -6,6 +6,8 @@ import sys
 import octoprint.plugin
 from octoprint.events import Events
 
+from flask.ext.login import current_user
+
 import httplib, urllib, json
 
 __author__ = "Thijs Bekke <thijsbekke@gmail.com>"
