@@ -66,10 +66,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		# Create the message
 		return self._settings.get(["events", "PrintDone", "message"]).format(**locals())
 
-	def PrintStarted(self, payload):
-		file = os.path.basename(payload["file"])
-		return self._settings.get(["events", "PrintStarted", "message"]).format(**locals())
-
 	def PrintFailed(self, payload):
 		file = os.path.basename(payload["file"])
 		return self._settings.get(["events", "PrintFailed", "message"]).format(**locals())
@@ -188,15 +184,10 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			user_key=None,
 			sound=None,
 			events = dict(
-				PrintStarted=dict(
-					name="Print started",
-					message="Print job started: {file}",
-					priority=0
-				),
 				PrintDone=dict(
 					name="Print done",
 					message="Print job finished: {file}, finished printing in {elapsed_time}",
-					priority = 0
+					priority=0
 				),
 				PrintFailed=dict(
 					name="Print failed",
@@ -208,54 +199,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					message="Error: {error}",
 					priority=0
 				),
-				PowerOff=dict(
-					name="GCode event power off",
-					message="The GCODE has turned on the printer power via M81",
-					priority=0
-				),
-				Waiting=dict(
-					name="GCode event waiting",
-					message="The print is paused due to a gcode wait command",
-					priority=0
-				),
 				Alert=dict(
 					name="GCode event alert",
 					message="The GCODE has issued a user alert (beep) via M300",
 					priority=0
 				),
-				Home=dict(
-					name="GCode event home",
-					message="The head has gone home via G28",
-					priority=0
-				),
 				EStop=dict(
 					name="GCode event estop",
 					message="The GCODE has issued a panic stop via M112",
-					priority=0
-				),
-				MovieDone=dict(
-					name="Movie done",
-					message="The timelapse movie is completed",
-					priority=0
-				),
-				MovieFailed=dict(
-					name="Movie failed",
-					message="There was an error while rendering the timelapse movie.",
-					priority=0
-				),
-				SlicingStarted=dict(
-					name="Slicing started",
-					message="The slicing has been started.",
-					priority=0
-				),
-				SlicingDone=dict(
-					name="Slicing done",
-					message="The slicing is completed.",
-					priority=0
-				),
-				SlicingFailed=dict(
-					name="Slicing failed",
-					message="The slicing is failed.",
 					priority=0
 				)
 			)
