@@ -136,7 +136,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		data = octoprint.plugin.SettingsPlugin.on_settings_load(self)
 
 		# only return our restricted settings to admin users - this is only needed for OctoPrint <= 1.2.16
-		restricted = ("api_token", "user_key")
+		restricted = ("token", "user_key")
 		for r in restricted:
 			if r in data and (current_user is None or current_user.is_anonymous() or not current_user.is_admin()):
 				data[r] = None
@@ -145,11 +145,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def get_settings_restricted_paths(self):
 		# only used in OctoPrint versions > 1.2.16
-		return dict(admin=[["api_token"], ["user_key"]])
+		return dict(admin=[["token"], ["user_key"]])
 
 	def create_payload(self, create_payload):
 		x = {
-			"token": self._settings.get(["api_token"]),
+			"token": self._settings.get(["token"]),
 			"user": self.user_key
 		}
 
@@ -170,7 +170,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def get(self, uri):
 		try:
 			conn = httplib.HTTPSConnection(self.api_url)
-			conn.request("GET", "/1/" + uri + "?token=" + self._settings.get(["api_token"]))
+			conn.request("GET", "/1/" + uri + "?token=" + self._settings.get(["token"]))
 
 			return conn.getresponse()
 
@@ -180,7 +180,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def get_settings_defaults(self):
 		return dict(
-			api_token="aY8c1fWze8A2USNavDeZLDEERCwVNn",
+			token="apWqpdodabxA5Uw11rY4g4gC1Vbbrs",
 			user_key=None,
 			sound=None,
 			events = dict(
@@ -192,21 +192,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				PrintFailed=dict(
 					name="Print failed",
 					message="Print job failed: {file}",
-					priority=0
-				),
-				Error=dict(
-					name="Error",
-					message="Error: {error}",
-					priority=0
-				),
-				Alert=dict(
-					name="GCode event alert",
-					message="The GCODE has issued a user alert (beep) via M300",
-					priority=0
-				),
-				EStop=dict(
-					name="GCode event estop",
-					message="The GCODE has issued a panic stop via M112",
 					priority=0
 				)
 			)
