@@ -20,7 +20,7 @@
     <div class="control-group">
         <label class="control-label">{{ _('User Key') }}</label>
         <div class="controls">
-            <input type="text" class="input-block-level" data-bind="value: settings.plugins.pushover.user_key">
+            <input type="text" class="input-block-level" id="userkey" data-bind="value: settings.plugins.pushover.user_key">
         </div>
     </div>
 
@@ -39,14 +39,19 @@
         </div>
     {% endfor %}
 
-    <div>
+    <div class="control-group">
+        <div class="controls">
+            <button class="btn" data-bind="click: function() { testNotification() }"><i class="icon-spinner icon-spin" data-bind="visible: testActive()"></i> {{ _('Test Pushover') }}</button> <span data-bind="visible: testResult() && testSuccessful()">{{ _('Sent successfully') }}</span><span data-bind="visible: testResult() && !testSuccessful()">{{ _('Sending failed') }}: <span data-bind="text: testMessage"></span></span>
+        </div>
+    </div>
+     <div>
         <div><small><a href="#" class="muted" onclick="$(this).children().toggleClass('icon-caret-right icon-caret-down').parent().parent().parent().next().slideToggle('fast')"><i class="icon-caret-right"></i> {{ _('Advanced options') }}</a></small></div>
         <div class="hide">
             <div class="control-group">
                 <label class="control-label">{{ _('API Key') }}</label>
                 <div class="controls">
-                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.pushover.token">
-                    <span class="help-inline">{{ _('Use your own API Key, this is not nessecary for this plugin too work') }}</span>
+                    <input type="text" class="input-block-level" id="apikey" data-bind="value: settings.plugins.pushover.token">
+                    <span class="help-inline">{{ _('Use your own API Key, this is not necessary for this plugin too work') }}</span>
                 </div>
             </div>
         </div>
