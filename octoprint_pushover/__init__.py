@@ -236,6 +236,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				),
 				PrintPaused=dict(
 					name="Print paused",
+					help="Send a notification when a Pause event is received. When a <code>m70</code> was sent "
+						 "to the printer, the message will be appended to the notification.",
 					message="Print job paused {m70_cmd}",
 					priority=0
 				)
@@ -245,8 +247,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def get_template_vars(self):
 		return dict(
 			sounds=self.get_sounds(),
-			# Makes an array containing the event key and a human readable name
-			events=dict((key, value["name"]) for key, value in self.get_settings_defaults()["events"].iteritems())
+			events=self.get_settings_defaults()["events"]
 		)
 
 	def get_sounds(self):
@@ -290,4 +291,6 @@ def __plugin_load__():
 
 	global __plugin_hooks__
 	__plugin_hooks__ = {
+		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
+		"octoprint.comm.protocol.gcode.sent": __plugin_implementation__.sent_m70
 	}

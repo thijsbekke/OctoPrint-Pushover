@@ -24,6 +24,7 @@
         </div>
     </div>
 
+    {% for key, value in plugin_pushover_events.iteritems() %}
         <div class="control-group">
             <label class="control-label">{{ value.name }}</label>
             <div class="controls">
