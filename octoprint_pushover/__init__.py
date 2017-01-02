@@ -26,6 +26,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.AssetPlugin):
 	user_key = ""
 	api_url = "api.pushover.net:443"
+	m70_cmd = ""
 
 	def get_assets(self):
 		return {
@@ -81,6 +82,10 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		return False
 
+	def sent_m70(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
+		if gcode and gcode == "M70":
+			self.m70_cmd = cmd[3:]
+
 	def PrintDone(self, payload):
 		file = os.path.basename(payload["file"])
 		elapsed_time_in_seconds = payload["time"]
@@ -96,26 +101,32 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		file = os.path.basename(payload["file"])
 		return self._settings.get(["events", "PrintFailed", "message"]).format(**locals())
 
+	def PrintPaused(self, payload):
+		m70_cmd = ""
+		if(self.m70_cmd != "") :
+			m70_cmd = self.m70_cmd
+
+		return self._settings.get(["events", "PrintPaused", "message"]).format(**locals())
+
+	def PrintStarted(self, payload):
+		self.m70_cmd = ""
+
 	def on_event(self, event, payload):
+		# It's easier to ask forgiveness than to ask permission.
+		try:
+			# Method exists, and was used.
+			payload["message"] = getattr(self, event)(payload)
+
+			self._logger.info("Event triggered: %s " % str(event))
+		except AttributeError:
+			return
+
 		# Does the event exists in the settings ?
 		if not event in self.get_settings_defaults()["events"]:
 			return False
 
 		# Only continue when there is a priority
 		priority = self._settings.get(["events", event, "priority"])
-		if priority == "":
-			return
-
-		self._logger.info("Event triggered: %s " % str(event))
-
-		# It's easier to ask forgiveness than to ask permission.
-		try:
-			payload["message"] = getattr(self, event)(payload)
-			# Method exists, and was used.
-		except AttributeError:
-			self._logger.info("not found")
-			# By default the message is simple and does not need any formatting
-			payload["message"] = self._settings.get(["events", event, "message"])
 
 		# By default, messages have normal priority (a priority of 0).
 		# We do not support the Emergency Priority (2) because there is no way of canceling it here,
@@ -222,6 +233,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					name="Print failed",
 					message="Print job failed: {file}",
 					priority=0
+				),
+				PrintPaused=dict(
+					name="Print paused",
+					message="Print job paused {m70_cmd}",
+					priority=0
 				)
 			)
 		)
@@ -274,5 +290,4 @@ def __plugin_load__():
 
 	global __plugin_hooks__
 	__plugin_hooks__ = {
-		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
 	}
