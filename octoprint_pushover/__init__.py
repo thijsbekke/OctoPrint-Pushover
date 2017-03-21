@@ -108,11 +108,17 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		return self._settings.get(["events", "PrintPaused", "message"]).format(**locals())
 
+	def Waiting(self, payload):
+		return self.PrintPaused(payload)
+
 	def PrintStarted(self, payload):
 		self.m70_cmd = ""
 
 	def on_event(self, event, payload):
 		# It's easier to ask forgiveness than to ask permission.
+
+		if(payload is None):
+			payload = {}
 		try:
 			# Method exists, and was used.
 			payload["message"] = getattr(self, event)(payload)
@@ -239,6 +245,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					help="Send a notification when a Pause event is received. When a <code>m70</code> was sent "
 						 "to the printer, the message will be appended to the notification.",
 					message="Print job paused {m70_cmd}",
+					priority=0
+				),
+				Waiting=dict(
+					name="Printer is waiting",
+					help="Send a notification when a Waiting event is received. When a <code>m70</code> was sent "
+						 "to the printer, the message will be appended to the notification.",
+					message="Printer is waiting {m70_cmd}",
 					priority=0
 				)
 			)
