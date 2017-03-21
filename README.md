@@ -42,9 +42,9 @@ Messages sent with this priority bypasses a user's quiet hours. These messages w
 
 You can specify a custom sound, your device will play this sound when receiving a message. You can specify one of [these sounds](https://pushover.net/api#sounds)
 
-### Pause Event
+### Pause/Waiting Event
 
-When for example a ```M0``` command is received and the settings are complied. This plugin will send a notification. And as bonus it will append any ```M70``` message to the notification, so you can remind yourself which colour you need to switch.
+When for example a ```M0``` or a ```M226``` command is received and the settings are complied. This plugin will send a notification. And as bonus it will append any ```M70``` message to the notification, so you can remind yourself which colour you need to switch.
 
 For example
 ```GCODE
