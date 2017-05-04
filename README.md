@@ -44,7 +44,7 @@ You can specify a custom sound, your device will play this sound when receiving 
 
 ### Devices
 
-You can enter the name of your device to send the message directly to that device, rather than all of your devices. An alternative option is to create a delivery group where you can specify your devices on [pushover.net](https://pushover.net/groups/build) and enter that group key as an user key in this plugin.
+You can enter the name of your device to send the message directly to that device, rather than all of your devices. An alternative option is to [create](https://pushover.net/groups/build) a delivery group where you can specify your devices and enter that group key as an user key in this plugin.
 
 ### Pause/Waiting Event
 
