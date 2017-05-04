@@ -13,7 +13,7 @@ The only thing you have too configure is the user key and set a priority for whi
 
 ## Features
 
-This plugin can send a notification with Pushover on the following events; Print done, Print failed and Print paused. In the settings dialog beside the user key you can specify the priority of the notifications and a sound.
+This plugin can send a notification with Pushover on the following events; Print done, Print failed and Print paused. In the settings dialog beside the user key you can specify the devices, priority of the notifications and a sound.
 
 This plugin will also append an url too your octoprint instance with the notification.
 
@@ -41,6 +41,10 @@ Messages sent with this priority bypasses a user's quiet hours. These messages w
 ### Sound
 
 You can specify a custom sound, your device will play this sound when receiving a message. You can specify one of [these sounds](https://pushover.net/api#sounds)
+
+### Devices
+
+You can the name of your device to send the message directly to that device, rather than all of your devices. An alternative option is to create a delivery group where you can specify your devices on [pushover.net](https://pushover.net/groups/build) and enter that group key as an user key in this plugin.
 
 ### Pause/Waiting Event
 
