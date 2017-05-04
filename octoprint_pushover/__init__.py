@@ -157,6 +157,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			sound = self._settings.get(["sound"])
 			if sound:
 				payload["sound"] = sound
+
+		if "device" not in payload:
+			# If no device parameter is specified, get it from the settings.
+			device = self._settings.get(["device"])
+			if device:
+				payload["device"] = device
+
 		try:
 			self.post("messages.json", self.create_payload(payload))
 		except Exception, e:
@@ -229,6 +236,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			token="apWqpdodabxA5Uw11rY4g4gC1Vbbrs",
 			user_key=None,
 			sound=None,
+			device=None,
 			events = dict(
 				PrintDone=dict(
 					name="Print done",

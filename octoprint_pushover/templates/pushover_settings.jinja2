@@ -24,6 +24,14 @@
         </div>
     </div>
 
+    <div class="control-group">
+        <label class="control-label">{{ _('Devices') }}</label>
+        <div class="controls">
+            <input type="text" class="input-block-level" id="device" data-bind="value: settings.plugins.pushover.device">
+            <span class="help-inline">{{ _('Enter the name of your device name to send the message directly to that device, rather than all of your devices (multiple devices may be separated by a comma). Or leave empty for all devices.') }}</span>
+        </div>
+    </div>
+
     {% for key, value in plugin_pushover_events.iteritems() %}
         <div class="control-group">
             <label class="control-label">{{ value.name }}</label>

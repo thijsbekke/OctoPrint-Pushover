@@ -18,12 +18,14 @@ $(function() {
             var apikey = $('#apikey').val();
             var userkey = $('#userkey').val();
             var sound = $('#pushover-sound option:selected').text();
+            var device = $('#device').val();
 
             var payload = {
                 command: "test",
                 api_key: apikey,
                 user_key: userkey,
                 sound: sound,
+                device: device,
             };
 
             $.ajax({
