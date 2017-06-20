@@ -23,7 +23,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.StartupPlugin,
 					 octoprint.plugin.SimpleApiPlugin,
 					 octoprint.plugin.TemplatePlugin,
-					 octoprint.plugin.AssetPlugin):
+					 octoprint.plugin.AssetPlugin,
+					 octoprint.plugin.OctoPrintPlugin):
 	user_key = ""
 	api_url = "api.pushover.net:443"
 	m70_cmd = ""
@@ -163,6 +164,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			device = self._settings.get(["device"])
 			if device:
 				payload["device"] = device
+
+		if self._printer_profile_manager is not None and "name" in self._printer_profile_manager.get_current_or_default():
+			payload["title"] = "Octoprint: %s" % self._printer_profile_manager.get_current_or_default()["name"]
 
 		try:
 			self.post("messages.json", self.create_payload(payload))
