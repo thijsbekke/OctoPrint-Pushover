@@ -120,7 +120,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				image_obj = image_obj.rotate(90)
 
 			# https://stackoverflow.com/questions/646286/python-pil-how-to-write-png-image-to-string/5504072
-			output = StringIO()
+			output = StringIO.StringIO()
 			image_obj.save(output, format="JPEG")
 			image = output.getvalue()
 			output.close()
