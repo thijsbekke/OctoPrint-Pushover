@@ -32,6 +32,14 @@
         </div>
     </div>
 
+    <div class="control-group">
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.pushover.image" id="image"> {{ _('Use the camera of Octoprint to send a image') }}
+            </label>
+        </div>
+    </div>
+
     {% for key, value in plugin_pushover_events.iteritems() %}
         <div class="control-group">
             <label class="control-label">{{ value.name }}</label>

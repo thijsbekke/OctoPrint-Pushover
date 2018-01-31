@@ -1,5 +1,5 @@
 # OctoPrint-Pushover
-Pushover plugin for octoprint, I wanted too receive notifications on my phone when [Octoprint](octoprint.org) finished a job, and e-mail just isn't good enough. So I build a plugin for the app/service that I use, [Pushover](https://pushover.net).
+Pushover plugin for octoprint, I wanted to receive notifications on my phone when [Octoprint](octoprint.org) finished a job, and e-mail just isn't good enough. So I build a plugin for the app/service that I use, [Pushover](https://pushover.net).
 
 ## Installing
 
@@ -9,13 +9,14 @@ https://github.com/thijsbekke/OctoPrint-Pushover/archive/master.zip
 ```
 ## Configuration
 
-The only thing you have too configure is the user key and set a priority for which event you want too be notified. You can find your own user key on your [Pushover](https://pushover.net) page. Copy and paste it too the "user key" field in the settings dialog of the Octoprint-Pushover plugin. And then you are done, the rest of the settings are optional.
+The only thing you have to configure is the user key and set a priority for which event you want to be notified. You can find your own user key on your [Pushover](https://pushover.net) page. Copy and paste it to the "user key" field in the settings dialog of the Octoprint-Pushover plugin. And then you are done, the rest of the settings are optional.
 
 ## Features
 
+The newest feature is image's ! It is now possible to receive an capture of your camera with your notifications.
 This plugin can send a notification with Pushover on the following events; Print done, Print failed and Print paused. In the settings dialog beside the user key you can specify the devices, priority of the notifications and a sound.
 
-This plugin will also append an url too your octoprint instance with the notification.
+This plugin will also append an url to your octoprint instance with the notification.
 
 
 ### Priority
@@ -62,7 +63,7 @@ G1 X108.789 Y104.770 E4.20140
 
 ### API Key
 
-Under advanced options you can specify your own API key, this is not necessary for this plugin too work. But when you want it, you can do it.
+Under advanced options you can specify your own API key, this is not necessary for this plugin to work. But when you want it, you can do it.
 
 ### Url
 

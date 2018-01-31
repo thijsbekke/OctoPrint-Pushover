@@ -19,6 +19,7 @@ $(function() {
             var userkey = $('#userkey').val();
             var sound = $('#pushover-sound option:selected').text();
             var device = $('#device').val();
+            var image = $('#image').is(':checked');
 
             var payload = {
                 command: "test",
@@ -26,6 +27,7 @@ $(function() {
                 user_key: userkey,
                 sound: sound,
                 device: device,
+                image: image,
             };
 
             $.ajax({
