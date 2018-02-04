@@ -15,8 +15,11 @@ __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agp
 __copyright__ = "Released under terms of the AGPLv3 License"
 __plugin_name__ = "Pushover"
 
-import flask
+from PIL import Image
+
+import flask, requests, StringIO, PIL
 import octoprint.plugin
+
 
 class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.SettingsPlugin,
@@ -26,7 +29,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.AssetPlugin,
 					 octoprint.plugin.OctoPrintPlugin):
 	user_key = ""
-	api_url = "api.pushover.net:443"
+	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
 
 	def get_assets(self):
@@ -41,13 +44,21 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def on_api_command(self, command, data):
 		if command == "test":
-			payload = {}
-			payload["message"] = "pewpewpew!! OctoPrint works."
-			payload["token"] = data["api_key"]
-			payload["user"] = data["user_key"]
+			# When we are testing the token, create a test notification
+			payload = {
+				"message": "pewpewpew!! OctoPrint works.",
+				"token": data["api_key"],
+				"user": data["user_key"],
+			}
 
+			# If there is a sound, include it in the payload
 			if "sound" in data:
 				payload["sound"] = data["sound"]
+
+			if "image" in data:
+				payload["image"] = data["image"]
+
+			# Validate the user key and send a message
 			try:
 				self.validate_pushover(data["user_key"])
 				self.event_message(payload)
@@ -58,24 +69,26 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 
 	def validate_pushover(self, user_key):
+		"""
+		Validate settings, this will do a post request too users/validate.json
+		:param user_key: 
+		:return: 
+		"""
 		if not user_key:
 			raise ValueError("No user key provided")
 
 		self.user_key = user_key
 		try:
-			HTTPResponse = self.post("users/validate.json", self.create_payload({}))
+			r = requests.post(self.api_url + "/users/validate.json", data=self.create_payload({}))
 
-			status = HTTPResponse.getheader('status')
-			if status is not None and status.startswith('40'):
-				raise ValueError("Error while instantiating Pushover, header %s" % HTTPResponse.getheader("status"))
-			elif status is not None and not status.startswith('200'):
-				raise ValueError(
-					"error while instantiating Pushover, header %s" % HTTPResponse.getheader("status"))
+			if r is not None and not r.status_code == 200:
+				raise ValueError("error while instantiating Pushover, header %s" % r.status_code)
 
-			response = json.loads(HTTPResponse.read())
+			response = json.loads(r.content)
 
 			if response["status"] == 1:
 				self._logger.info("Connected to Pushover")
+
 				return True
 
 		except Exception, e:
@@ -83,7 +96,48 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		return False
 
+	def image(self):
+
+		snapshot_url = self._settings.global_get(["webcam", "snapshot"])
+		if not snapshot_url:
+			return None
+
+		self._logger.debug("Snapshot URL: " + str(snapshot_url))
+		image = requests.get(snapshot_url, stream=True).content
+
+		hflip = self._settings.global_get(["webcam", "flipH"])
+		vflip = self._settings.global_get(["webcam", "flipV"])
+		rotate = self._settings.global_get(["webcam", "rotate90"])
+
+		if hflip or vflip or rotate:
+			# https://www.blog.pythonlibrary.org/2017/10/05/how-to-rotate-mirror-photos-with-python/
+			image_obj = Image.open(StringIO.StringIO(image))
+			if hflip:
+				image_obj = image_obj.transpose(Image.FLIP_LEFT_RIGHT)
+			if vflip:
+				image_obj = image_obj.transpose(Image.FLIP_TOP_BOTTOM)
+			if rotate:
+				image_obj = image_obj.rotate(90)
+
+			# https://stackoverflow.com/questions/646286/python-pil-how-to-write-png-image-to-string/5504072
+			output = StringIO.StringIO()
+			image_obj.save(output, format="JPEG")
+			image = output.getvalue()
+			output.close()
+		return image
+
 	def sent_m70(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
+		"""
+		M70 Gcode commands are used for sending a text when print is paused
+		:param comm_instance: 
+		:param phase: 
+		:param cmd: 
+		:param cmd_type: 
+		:param gcode: 
+		:param args: 
+		:param kwargs: 
+		:return: 
+		"""
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
 
@@ -104,7 +158,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def PrintPaused(self, payload):
 		m70_cmd = ""
-		if(self.m70_cmd != "") :
+		if (self.m70_cmd != ""):
 			m70_cmd = self.m70_cmd
 
 		return self._settings.get(["events", "PrintPaused", "message"]).format(**locals())
@@ -117,8 +171,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def on_event(self, event, payload):
 		# It's easier to ask forgiveness than to ask permission.
-
-		if(payload is None):
+		if (payload is None):
 			payload = {}
 		try:
 			# Method exists, and was used.
@@ -142,7 +195,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		self.event_message(payload)
 
+
 	def event_message(self, payload):
+		"""
+		Do send the notification to the cloud :)
+		:param payload: 
+		:return: 
+		"""
 		# Create an url, if the fqdn is not correct you can manually set it at your config.yaml
 		url = self._settings.get(["url"])
 		if (url):
@@ -168,8 +227,17 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if self._printer_profile_manager is not None and "name" in self._printer_profile_manager.get_current_or_default():
 			payload["title"] = "Octoprint: %s" % self._printer_profile_manager.get_current_or_default()["name"]
 
+		files = {}
 		try:
-			self.post("messages.json", self.create_payload(payload))
+			if self._settings.get(["image"]) or ("image" in payload and payload["image"]):
+				files['attachment'] = ("image.jpg", self.image())
+		except Exception, e:
+			self._logger.exception(str(e))
+
+		try:
+			r = requests.post(self.api_url + "/messages.json",
+							  files=files, data=self.create_payload(payload))
+			self._logger.info("Response: " + str(r.content))
 		except Exception, e:
 			self._logger.exception(str(e))
 
@@ -204,36 +272,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		# only used in OctoPrint versions > 1.2.16
 		return dict(admin=[["token"], ["user_key"]])
 
-	def create_payload(self, create_payload):
-		x = {}
-		if "token" not in create_payload:
-			x["token"] = self._settings.get(["token"])
+	def create_payload(self, payload):
+		if "token" not in payload:
+			payload["token"] = self._settings.get(["token"])
 
-		if "user" not in create_payload:
-			x["user"] = self.user_key
+		if "user" not in payload:
+			payload["user"] = self.user_key
 
-		new_payload = x.copy()
-		new_payload.update(create_payload)
-
-		return urllib.urlencode(new_payload)
-
-	def post(self, uri, payload):
-		try:
-			conn = httplib.HTTPSConnection(self.api_url)
-			conn.request("POST", "/1/" + uri, payload, {"Content-type": "application/x-www-form-urlencoded"})
-			return conn.getresponse()
-		except Exception, e:
-			raise ValueError("error while instantiating Pushover: %s" % str(e))
-
-	def get(self, uri):
-		try:
-			conn = httplib.HTTPSConnection(self.api_url)
-			conn.request("GET", "/1/" + uri + "?token=" + self._settings.get(["token"]))
-
-			return conn.getresponse()
-
-		except Exception, e:
-			raise ValueError("error while getting data from Pushover: %s" % str(e))
+		return payload
 
 	def get_settings_defaults(self):
 		return dict(
@@ -241,7 +287,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			user_key=None,
 			sound=None,
 			device=None,
-			events = dict(
+			image=True,
+			events=dict(
 				PrintDone=dict(
 					name="Print done",
 					message="Print job finished: {file}, finished printing in {elapsed_time}",
@@ -277,13 +324,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def get_sounds(self):
 		try:
-			# Make a call too the sounds API
-			HTTPResponse = self.get("sounds.json")
+			r = requests.get(self.api_url + "/sounds.json?token="+ self._settings.get(["token"]) )
+			return json.loads(r.content)["sounds"]
 		except Exception, e:
 			self._logger.exception(str(e))
-			return
-
-		return json.loads(HTTPResponse.read())["sounds"]
+			return {}
 
 	def get_template_configs(self):
 		return [
@@ -306,6 +351,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				pip="https://github.com/thijsbekke/OctoPrint-Pushover/archive/{target_version}.zip"
 			)
 		)
+
 
 __plugin_name__ = "Pushover"
 
