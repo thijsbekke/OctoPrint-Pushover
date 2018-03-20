@@ -40,8 +40,8 @@
         </div>
     </div>
 
-    {% for key, value in plugin_pushover_events.iteritems() %}
-        <div class="control-group">
+    {% for key, value in plugin_pushover_events.iteritems() if not value.hidden %}
+       <div class="control-group">
             <label class="control-label">{{ value.name }}</label>
             <div class="controls">
                 <select data-bind="value: settings.plugins.pushover.events.{{ key }}.priority">
@@ -63,7 +63,7 @@
             <button class="btn" data-bind="click: function() { testNotification() }"><i class="icon-spinner icon-spin" data-bind="visible: testActive()"></i> {{ _('Test Pushover') }}</button> <span data-bind="visible: testResult() && testSuccessful()">{{ _('Sent successfully') }}</span><span data-bind="visible: testResult() && !testSuccessful()">{{ _('Sending failed') }}: <span data-bind="text: testMessage"></span></span>
         </div>
     </div>
-     <div>
+    <div>
         <div><small><a href="#" class="muted" onclick="$(this).children().toggleClass('icon-caret-right icon-caret-down').parent().parent().parent().next().slideToggle('fast')"><i class="icon-caret-right"></i> {{ _('Advanced options') }}</a></small></div>
         <div class="hide">
             <div class="control-group">
@@ -73,6 +73,23 @@
                     <span class="help-inline">{{ _('Use your own API Key, this is not necessary for this plugin too work') }}</span>
                 </div>
             </div>
+            {% for key, value in plugin_pushover_events.iteritems() if value.hidden %}
+            <div class="control-group">
+                <label class="control-label">{{ value.name }}</label>
+                <div class="controls">
+                    <select data-bind="value: settings.plugins.pushover.events.{{ key }}.priority">
+                        <option value="">{{ _('Off') }}</option>
+                        <option value="-2">{{ _('Lowest Priority') }}</option>
+                        <option value="-1">{{ _('Low Priority') }}</option>
+                        <option value="0">{{ _('Normal Priority') }}</option>
+                        <option value="1">{{ _('High Priority') }}</option>
+                    </select>
+                    {% if value.help is defined %}
+                        <span class="help-inline">{{ value.help }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
         </div>
-     </div>
+    </div>
 </form>

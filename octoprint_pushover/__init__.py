@@ -21,6 +21,9 @@ import flask, requests, StringIO, PIL
 import octoprint.plugin
 
 
+class SkipEvent(Exception):
+	pass
+
 class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.SettingsPlugin,
 					 octoprint.plugin.StartupPlugin,
@@ -31,6 +34,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	user_key = ""
 	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
+	printing = False
 
 	def get_assets(self):
 		return {
@@ -67,10 +71,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				return flask.jsonify(dict(success=False, msg=str(e.message)))
 		return flask.make_response("Unknown command", 400)
 
-
 	def validate_pushover(self, user_key):
 		"""
-		Validate settings, this will do a post request too users/validate.json
+		Validate settings, this will do a post request to users/validate.json
 		:param user_key: 
 		:return: 
 		"""
@@ -97,12 +100,16 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		return False
 
 	def image(self):
-
+		"""
+		Create an image by getting an image form the setting webcam-snapshot. 
+		Transpose this image according the settings and returns it 
+		:return: 
+		"""
 		snapshot_url = self._settings.global_get(["webcam", "snapshot"])
 		if not snapshot_url:
 			return None
 
-		self._logger.debug("Snapshot URL: " + str(snapshot_url))
+		self._logger.debug("Snapshot URL: %s " % str(snapshot_url))
 		image = requests.get(snapshot_url, stream=True).content
 
 		hflip = self._settings.global_get(["webcam", "flipH"])
@@ -141,8 +148,16 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
 
+	# Start with event handling: http://docs.octoprint.org/en/master/events/index.html
+
 	def PrintDone(self, payload):
-		file = os.path.basename(payload["file"])
+		"""
+		When the print is done, enhance the payload with the filename and the elased time and returns it 
+		:param payload: 
+		:return: 
+		"""
+		self.printing =False
+		file = os.path.basename(payload["name"])
 		elapsed_time_in_seconds = payload["time"]
 
 		import datetime
@@ -153,10 +168,21 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		return self._settings.get(["events", "PrintDone", "message"]).format(**locals())
 
 	def PrintFailed(self, payload):
-		file = os.path.basename(payload["file"])
+		"""
+		When the print is failed, enhance the payload with the filename and returns it 
+		:param payload: 
+		:return: 
+		"""
+		self.printing = False
+		file = os.path.basename(payload["name"])
 		return self._settings.get(["events", "PrintFailed", "message"]).format(**locals())
 
 	def PrintPaused(self, payload):
+		"""
+		When the print is paused check if there is a m70 command, and replace that in the message.
+		:param payload: 
+		:return: 
+		"""
 		m70_cmd = ""
 		if (self.m70_cmd != ""):
 			m70_cmd = self.m70_cmd
@@ -164,26 +190,55 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		return self._settings.get(["events", "PrintPaused", "message"]).format(**locals())
 
 	def Waiting(self, payload):
+		"""
+		Alias for PrintPaused
+		:param payload: 
+		:return: 
+		"""
 		return self.PrintPaused(payload)
 
 	def PrintStarted(self, payload):
+		"""
+		Reset value's
+		:param payload: 
+		:return: 
+		"""
+		self.printing = True
 		self.m70_cmd = ""
 
+	def Error(self, payload):
+		"""
+		Only continue when the current state is printing
+		:param payload: 
+		:return: 
+		"""
+		if(self.printing):
+			error = payload["error"]
+			return self._settings.get(["events", "Error", "message"]).format(**locals())
+		raise SkipEvent()
+
+
 	def on_event(self, event, payload):
-		# It's easier to ask forgiveness than to ask permission.
+
 		if (payload is None):
 			payload = {}
+
+		# It's easier to ask forgiveness than to ask permission.
 		try:
 			# Method exists, and was used.
 			payload["message"] = getattr(self, event)(payload)
 
 			self._logger.info("Event triggered: %s " % str(event))
 		except AttributeError:
+			# By default the message is simple and does not need any formatting
+			payload["message"] = self._settings.get(["events", event, "message"])
+		except SkipEvent:
+			# Return when we can skip this event
 			return
 
-		# Does the event exists in the settings ?
+		# Does the event exists in the settings ? if not we don't want it
 		if not event in self.get_settings_defaults()["events"]:
-			return False
+			return
 
 		# Only continue when there is a priority
 		priority = self._settings.get(["events", event, "priority"])
@@ -194,7 +249,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			payload["priority"] = priority
 
 		self.event_message(payload)
-
 
 	def event_message(self, payload):
 		"""
@@ -232,22 +286,32 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			if self._settings.get(["image"]) or ("image" in payload and payload["image"]):
 				files['attachment'] = ("image.jpg", self.image())
 		except Exception, e:
-			self._logger.exception(str(e))
+			self._logger.info("Could not load image from url")
 
+		# Multiple try catches so it will always send a message if the image raises an Exception
 		try:
 			r = requests.post(self.api_url + "/messages.json",
 							  files=files, data=self.create_payload(payload))
-			self._logger.info("Response: " + str(r.content))
+			self._logger.debug("Response: %s" % str(r.content))
 		except Exception, e:
-			self._logger.exception(str(e))
+			self._logger.info("Could not send message: %s" % str(e))
 
 	def on_after_startup(self):
+		"""
+		Valide settings on startup
+		:return: 
+		"""
 		try:
 			self.validate_pushover(self._settings.get(["user_key"]))
 		except Exception, e:
-			self._logger.exception(str(e))
+			self._logger.info(str(e))
 
 	def on_settings_save(self, data):
+		"""
+		Valide settings onm save
+		:param data: 
+		:return: 
+		"""
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 		try:
 			import threading
@@ -255,7 +319,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			thread.daemon = True
 			thread.start()
 		except Exception, e:
-			self._logger.exception(str(e))
+			self._logger.info(str(e))
 
 	def on_settings_load(self):
 		data = octoprint.plugin.SettingsPlugin.on_settings_load(self)
@@ -312,7 +376,28 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 						 "to the printer, the message will be appended to the notification.",
 					message="Printer is waiting {m70_cmd}",
 					priority=0
-				)
+				),
+				Alert=dict(
+					name="Alert event (M300)",
+					message="Alert, The printer issued a alert (beep) via M300",
+					priority=1,
+					hidden=True
+				),
+				EStop=dict(
+					name="Panic event (M112)",
+					message="Panic!! The printer issued a panic stop (M112)",
+					priority=1,
+					hidden=True
+				),
+				# See: src/octoprint/util/comm.py:2009
+				Error=dict(
+					name="Error event",
+					help="This event occurs when for example your temperature sensor disconnects.",
+					message="Error!! An error has occurred in the printer communication. {error}",
+					priority=1,
+					hidden=True
+				),
+
 			)
 		)
 
@@ -327,7 +412,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			r = requests.get(self.api_url + "/sounds.json?token="+ self._settings.get(["token"]) )
 			return json.loads(r.content)["sounds"]
 		except Exception, e:
-			self._logger.exception(str(e))
+			self._logger.debug(str(e))
 			return {}
 
 	def get_template_configs(self):
