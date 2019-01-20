@@ -247,8 +247,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		# We do not support the Emergency Priority (2) because there is no way of canceling it here,
 		if priority:
 			payload["priority"] = priority
-
-		self.event_message(payload)
+			self.event_message(payload)
 
 	def event_message(self, payload):
 		"""
