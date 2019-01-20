@@ -174,7 +174,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:return: 
 		"""
 		self.printing = False
-		file = os.path.basename(payload["name"])
+		if "name" in payload:
+			file = os.path.basename(payload["name"])
 		return self._settings.get(["events", "PrintFailed", "message"]).format(**locals())
 
 	def PrintPaused(self, payload):
