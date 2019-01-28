@@ -1,22 +1,27 @@
 <h3>{{ _('Pushover Configuration') }}</h3>
 
 {% trans %}<p>
-    In order to use the Pushover plugin, you need to configure your Pushover
-    user key below. You can find those in
+    In order to use the Pushover plugin. You need to obtain an API key and enter user key below. You can find your user key in
     <a href="https://pushover.net/" target="_blank">your Pushover account settings</a>.
 </p>{% endtrans %}
 
 <form class="form-horizontal">
     <div class="control-group">
-        <label class="control-label">{{ _('Sound') }}</label>
+        <label class="control-label">{{ _('API Key') }}</label>
         <div class="controls">
-            <select id="pushover-sound" data-bind="value: settings.plugins.pushover.sound">
-                {% for item in plugin_pushover_sounds -%}
-                    <option value="{{ item }}">{{ item }}</option>
-                {%- endfor %}
-            </select>
+            <div class="row-fluid" style="margin-bottom: 5px">
+                <div class="span8">
+                    <input type="text" class="input-block-level" id="apikey" data-bind="value: settings.plugins.pushover.token">
+                </div>
+
+                <div class="span4">
+                    <a href="https://pushover.net/apps/clone/octoprint" target="_blank"  class="btn">{{ _('Obtain API key') }}</a>
+                </div>
+            </div>
+            <span class="help-inline">{{ _('Use your own API Key, this is not necessary for this plugin to work. But definitely ensures it will always works') }}</span>
         </div>
     </div>
+
     <div class="control-group">
         <label class="control-label">{{ _('User Key') }}</label>
         <div class="controls">
@@ -29,6 +34,23 @@
         <div class="controls">
             <input type="text" class="input-block-level" id="device" data-bind="value: settings.plugins.pushover.device">
             <span class="help-inline">{{ _('Enter the name of your device name to send the message directly to that device, rather than all of your devices (multiple devices may be separated by a comma). Or leave empty for all devices.') }}</span>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <div class="controls">
+            <button class="btn" data-bind="click: function() { testNotification() }"><i class="icon-spinner icon-spin" data-bind="visible: testActive()"></i> {{ _('Test Pushover') }}</button> <span data-bind="visible: testResult() && testSuccessful()">{{ _('Sent successfully') }}</span><span data-bind="visible: testResult() && !testSuccessful()">{{ _('Sending failed') }}: <span data-bind="text: testMessage"></span></span>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label class="control-label">{{ _('Sound') }}</label>
+        <div class="controls">
+            <select id="pushover-sound" data-bind="value: settings.plugins.pushover.sound">
+                {% for item in plugin_pushover_sounds -%}
+                    <option value="{{ item }}">{{ item }}</option>
+                {%- endfor %}
+            </select>
         </div>
     </div>
 
@@ -58,21 +80,11 @@
         </div>
     {% endfor %}
 
-    <div class="control-group">
-        <div class="controls">
-            <button class="btn" data-bind="click: function() { testNotification() }"><i class="icon-spinner icon-spin" data-bind="visible: testActive()"></i> {{ _('Test Pushover') }}</button> <span data-bind="visible: testResult() && testSuccessful()">{{ _('Sent successfully') }}</span><span data-bind="visible: testResult() && !testSuccessful()">{{ _('Sending failed') }}: <span data-bind="text: testMessage"></span></span>
-        </div>
-    </div>
+
     <div>
         <div><small><a href="#" class="muted" onclick="$(this).children().toggleClass('icon-caret-right icon-caret-down').parent().parent().parent().next().slideToggle('fast')"><i class="icon-caret-right"></i> {{ _('Advanced options') }}</a></small></div>
         <div class="hide">
-            <div class="control-group">
-                <label class="control-label">{{ _('API Key') }}</label>
-                <div class="controls">
-                    <input type="text" class="input-block-level" id="apikey" data-bind="value: settings.plugins.pushover.token">
-                    <span class="help-inline">{{ _('Use your own API Key, this is not necessary for this plugin too work') }}</span>
-                </div>
-            </div>
+
             {% for key, value in plugin_pushover_events.iteritems() if value.hidden %}
             <div class="control-group">
                 <label class="control-label">{{ value.name }}</label>

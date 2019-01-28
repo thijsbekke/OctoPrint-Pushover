@@ -1,5 +1,5 @@
 # OctoPrint-Pushover
-Pushover plugin for octoprint, I wanted to receive notifications on my phone when [Octoprint](octoprint.org) finished a job, and e-mail just isn't good enough. So I build a plugin for the app/service that I use, [Pushover](https://pushover.net).
+Pushover plugin for octoprint, I wanted to receive notifications on my phone when [Octoprint](octoprint.org) finished, paused or gives an error while printing, and e-mail just isn't good enough. So I build a plugin for the app/service that I use, [Pushover](https://pushover.net).
 
 ## Installing
 
@@ -9,7 +9,11 @@ https://github.com/thijsbekke/OctoPrint-Pushover/archive/master.zip
 ```
 ## Configuration
 
-The only thing you have to configure is the user key and set a priority for which event you want to be notified. You can find your own user key on your [Pushover](https://pushover.net) page. Copy and paste it to the "user key" field in the settings dialog of the Octoprint-Pushover plugin. And then you are done, the rest of the settings are optional.
+Obtain an API key through the following [Link](https://pushover.net/apps/clone/octoprint) this is not necessary for this plugin to work. 
+
+You also have to enter your user key. You can find your own user key on your [Pushover](https://pushover.net) page. Copy and paste it to the "user key" field in the settings dialog of the Octoprint-Pushover plugin. And then you are done. 
+
+Additional you can set a priority for each event you want to be notified of. 
 
 ## Features
 
@@ -60,10 +64,6 @@ M0
 G1 X109.186 Y102.500 E4.02408
 G1 X108.789 Y104.770 E4.20140
 ```
-
-### API Key
-
-Under advanced options you can specify your own API key, this is not necessary for this plugin to work. But when you want it, you can do it.
 
 ### Url
 

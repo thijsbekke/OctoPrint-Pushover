@@ -31,7 +31,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.TemplatePlugin,
 					 octoprint.plugin.AssetPlugin,
 					 octoprint.plugin.OctoPrintPlugin):
-	user_key = ""
 	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
 	printing = False
@@ -48,6 +47,10 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def on_api_command(self, command, data):
 		if command == "test":
+
+			if not data["api_key"]:
+				data["api_key"] = self.get_token()
+
 			# When we are testing the token, create a test notification
 			payload = {
 				"message": "pewpewpew!! OctoPrint works.",
@@ -64,25 +67,29 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 			# Validate the user key and send a message
 			try:
-				self.validate_pushover(data["user_key"])
+				self.validate_pushover(data["api_key"], data["user_key"])
 				self.event_message(payload)
 				return flask.jsonify(dict(success=True))
 			except Exception as e:
 				return flask.jsonify(dict(success=False, msg=str(e.message)))
 		return flask.make_response("Unknown command", 400)
 
-	def validate_pushover(self, user_key):
+	def validate_pushover(self, api_key, user_key):
 		"""
 		Validate settings, this will do a post request to users/validate.json
 		:param user_key: 
 		:return: 
 		"""
+		if not api_key:
+			raise ValueError("No api key provided")
 		if not user_key:
 			raise ValueError("No user key provided")
 
-		self.user_key = user_key
 		try:
-			r = requests.post(self.api_url + "/users/validate.json", data=self.create_payload({}))
+			r = requests.post(self.api_url + "/users/validate.json", data={
+				"token": api_key,
+				"user": user_key,
+			})
 
 			if r is not None and not r.status_code == 200:
 				raise ValueError("error while instantiating Pushover, header %s" % r.status_code)
@@ -221,7 +228,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def on_event(self, event, payload):
 
-		if (payload is None):
+		if payload is None:
 			payload = {}
 
 		# It's easier to ask forgiveness than to ask permission.
@@ -265,6 +272,12 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			import socket
 			payload["url"] = "http://%s" % socket.getfqdn()
 
+		if "token" not in payload:
+			payload["token"] = self.get_token()
+
+		if "user" not in payload:
+			payload["user"] = self._settings.get(["user_key"])
+
 		if "sound" not in payload:
 			# If no sound parameter is specified, the user"s default tone will play.
 			# If the user has not chosen a custom sound, the standard Pushover sound will play.
@@ -290,8 +303,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		# Multiple try catches so it will always send a message if the image raises an Exception
 		try:
-			r = requests.post(self.api_url + "/messages.json",
-							  files=files, data=self.create_payload(payload))
+			r = requests.post(self.api_url + "/messages.json", files=files, data=payload)
 			self._logger.debug("Response: %s" % str(r.content))
 		except Exception, e:
 			self._logger.info("Could not send message: %s" % str(e))
@@ -302,9 +314,18 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:return: 
 		"""
 		try:
-			self.validate_pushover(self._settings.get(["user_key"]))
+			self.validate_pushover(self.get_token(), self._settings.get(["user_key"]))
 		except Exception, e:
 			self._logger.info(str(e))
+
+	def get_settings_version(self):
+		return 1
+
+	def on_settings_migrate(self, target, current=None):
+		if current is None:
+			# If you have the default token, remove it so users will be more triggered to obtain their own.
+			if self._settings.get(["token"]) == self._settings.get(["default_token"]):
+				self._settings.set(["token"], None)
 
 	def on_settings_save(self, data):
 		"""
@@ -315,7 +336,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 		try:
 			import threading
-			thread = threading.Thread(target=self.validate_pushover, args=(self._settings.get(["user_key"]),))
+			thread = threading.Thread(target=self.validate_pushover, args=(self.get_token(), self._settings.get(["user_key"]),))
 			thread.daemon = True
 			thread.start()
 		except Exception, e:
@@ -325,7 +346,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		data = octoprint.plugin.SettingsPlugin.on_settings_load(self)
 
 		# only return our restricted settings to admin users - this is only needed for OctoPrint <= 1.2.16
-		restricted = ("token", "user_key")
+		restricted = ("default_token", "token", "user_key")
 		for r in restricted:
 			if r in data and (current_user is None or current_user.is_anonymous() or not current_user.is_admin()):
 				data[r] = None
@@ -334,20 +355,18 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def get_settings_restricted_paths(self):
 		# only used in OctoPrint versions > 1.2.16
-		return dict(admin=[["token"], ["user_key"]])
+		return dict(admin=[["default_token"], ["token"], ["user_key"]])
 
-	def create_payload(self, payload):
-		if "token" not in payload:
-			payload["token"] = self._settings.get(["token"])
-
-		if "user" not in payload:
-			payload["user"] = self.user_key
-
-		return payload
+	def get_token(self):
+		if self._settings.get(["token"]) is None:
+			# If an users don't want an own API key, it is ok, you can use mine.
+			return self._settings.get(["default_token"])
+		return self._settings.get(["token"])
 
 	def get_settings_defaults(self):
 		return dict(
-			token="apWqpdodabxA5Uw11rY4g4gC1Vbbrs",
+			default_token ="apWqpdodabxA5Uw11rY4g4gC1Vbbrs",
+			token=None,
 			user_key=None,
 			sound=None,
 			device=None,
@@ -356,7 +375,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				PrintDone=dict(
 					name="Print done",
 					message="Print job finished: {file}, finished printing in {elapsed_time}",
-					priority=0
+					priority="0"
 				),
 				PrintFailed=dict(
 					name="Print failed",
@@ -409,7 +428,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def get_sounds(self):
 		try:
-			r = requests.get(self.api_url + "/sounds.json?token="+ self._settings.get(["token"]) )
+			r = requests.get(self.api_url + "/sounds.json?token="+ self.get_token())
 			return json.loads(r.content)["sounds"]
 		except Exception, e:
 			self._logger.debug(str(e))
