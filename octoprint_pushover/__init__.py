@@ -36,7 +36,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
 	printing = False
-	startTime = 0
+	startTime = None
 	lastMinute = 0
 
 	def get_assets(self):
@@ -145,7 +145,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		return image
 
 	def getMinsSinceStarted(self):
-		return int(round((datetime.datetime.now() - self.startTime).total_seconds() / 60, 0))
+		if self.startTime:
+			return int(round((datetime.datetime.now() - self.startTime).total_seconds() / 60, 0))
 
 	def checkSchedule(self):
 		"""
@@ -193,6 +194,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 		self.printing = False
 		self.lastMinute = 0
+		self.startTime = None
 		file = os.path.basename(payload["name"])
 		elapsed_time_in_seconds = payload["time"]
 
