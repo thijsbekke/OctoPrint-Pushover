@@ -6,6 +6,8 @@
 </p>{% endtrans %}
 
 <form class="form-horizontal">
+    <h4>General</h4>
+
     <div class="control-group">
         <label class="control-label">{{ _('API Key') }}</label>
         <div class="controls">
@@ -62,6 +64,28 @@
         </div>
     </div>
 
+    <h4>Scheduled notifications</h4>
+
+    <div class="control-group">
+        <label class="control-label">Notify me every</label>
+        <div class="controls">
+            <select data-bind="value: settings.plugins.pushover.scheduleMod">
+                <option value="">Off</option>
+                <option value="2">Every 2 minutes</option>
+                <option value="5">Every 5 minutes</option>
+                <option value="10">Every 10 minutes</option>
+                <option value="20">Every 20 minutes</option>
+                <option value="30">Every 30 minutes</option>
+                <option value="40">Every 40 minutes</option>
+                <option value="50">Every 50 minutes</option>
+                <option value="60">Every hour</option>
+            </select>
+            <span class="help-inline">Send regular updates every <i>y</i> minutes.</span>
+        </div>
+    </div>
+
+    <h4>Event notifications</h4>
+
     {% for key, value in plugin_pushover_events.iteritems() if not value.hidden %}
        <div class="control-group">
             <label class="control-label">{{ value.name }}</label>
@@ -79,7 +103,6 @@
             </div>
         </div>
     {% endfor %}
-
 
     <div>
         <div><small><a href="#" class="muted" onclick="$(this).children().toggleClass('icon-caret-right icon-caret-down').parent().parent().parent().next().slideToggle('fast')"><i class="icon-caret-right"></i> {{ _('Advanced options') }}</a></small></div>
@@ -103,5 +126,7 @@
             </div>
         {% endfor %}
         </div>
+
+        
     </div>
 </form>

@@ -36,6 +36,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
 	printing = False
+	startTime = 0
+	lastMinute = 0
 
 	def get_assets(self):
 		return {
@@ -142,7 +144,23 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			output.close()
 		return image
 
-	def sent_m70(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
+	def getMinsSinceStarted(self):
+		return int(round((datetime.datetime.now() - self.startTime).total_seconds() / 60, 0))
+
+	def checkSchedule(self):
+		"""
+			Check the scheduler
+			Send a notification
+		"""
+		scheduleMod = self._settings.get(["scheduleMod"])
+
+
+		if scheduleMod and self.lastMinute % int(scheduleMod) == 0:
+			self.event_message({
+				"message": 'Scheduled notification'
+			})
+
+	def sent_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
 		"""
 		M70 Gcode commands are used for sending a text when print is paused
 		:param comm_instance: 
@@ -154,6 +172,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:param kwargs: 
 		:return: 
 		"""
+		if gcode and gcode != "G1":
+			mss = self.getMinsSinceStarted()
+
+			if self.lastMinute != mss:
+				self.lastMinute = mss
+				self.checkSchedule()
+		
+		
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
 
@@ -165,12 +191,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:param payload: 
 		:return: 
 		"""
-		self.printing =False
+		self.printing = False
+		self.lastMinute = 0
 		file = os.path.basename(payload["name"])
 		elapsed_time_in_seconds = payload["time"]
 
-		import datetime
-		import octoprint.util
 		elapsed_time = octoprint.util.get_formatted_timedelta(datetime.timedelta(seconds=elapsed_time_in_seconds))
 
 		# Create the message
@@ -214,6 +239,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:return: 
 		"""
 		self.printing = True
+		self.startTime = datetime.datetime.now()
 		self.m70_cmd = ""
 
 	def Error(self, payload):
@@ -373,6 +399,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			sound=None,
 			device=None,
 			image=True,
+			scheduleMod=None,
 			events=dict(
 				PrintDone=dict(
 					name="Print done",
@@ -469,5 +496,5 @@ def __plugin_load__():
 	global __plugin_hooks__
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
-		"octoprint.comm.protocol.gcode.sent": __plugin_implementation__.sent_m70
+		"octoprint.comm.protocol.gcode.sent": __plugin_implementation__.sent_gcode
 	}
