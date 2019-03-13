@@ -32,12 +32,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.SimpleApiPlugin,
 					 octoprint.plugin.TemplatePlugin,
 					 octoprint.plugin.AssetPlugin,
+					 octoprint.plugin.ProgressPlugin,
 					 octoprint.plugin.OctoPrintPlugin):
 	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
 	printing = False
 	startTime = None
 	lastMinute = 0
+	progress = 0
 
 	def get_assets(self):
 		return {
@@ -143,6 +145,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			image = output.getvalue()
 			output.close()
 		return image
+
+	def on_print_progress(self, storage, path, progress):
+		progressMod = self._settings.get(["progressMod"])
+
+		if self.printing and progressMod and progress % int(progressMod) == 0:
+			self.event_message({
+				"message": 'Print progress: {}%'.format(progress)
+			})
 
 	def getMinsSinceStarted(self):
 		if self.startTime:
@@ -402,6 +412,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			device=None,
 			image=True,
 			scheduleMod=None,
+			progressMod=None,
 			events=dict(
 				PrintDone=dict(
 					name="Print done",

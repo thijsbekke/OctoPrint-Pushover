@@ -67,7 +67,7 @@
     <h4>Scheduled notifications</h4>
 
     <div class="control-group">
-        <label class="control-label">Notify me every</label>
+        <label class="control-label">Notify me (minutes)</label>
         <div class="controls">
             <select data-bind="value: settings.plugins.pushover.scheduleMod">
                 <option value="">Off</option>
@@ -81,6 +81,22 @@
                 <option value="60">Every hour</option>
             </select>
             <span class="help-inline">Send regular updates every <i>y</i> minutes.</span>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label class="control-label">Notify me (percent)</label>
+        <div class="controls">
+            <select data-bind="value: settings.plugins.pushover.progressMod">
+                <option value="">Off</option>
+                <option value="2">Every 2 percent</option>
+                <option value="5">Every 5 percent</option>
+                <option value="10">Every 10 percent</option>
+                <option value="15">Every 15 percent</option>
+                <option value="20">Every 20 percent</option>
+                <option value="25">Every 25 percent</option>
+            </select>
+            <span class="help-inline">Send regular updates every <i>y</i> percent.</span>
         </div>
     </div>
 
