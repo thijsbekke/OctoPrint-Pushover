@@ -155,7 +155,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		scheduleMod = self._settings.get(["scheduleMod"])
 
 
-		if scheduleMod and self.lastMinute % int(scheduleMod) == 0:
+		if self.printing and scheduleMod and self.lastMinute % int(scheduleMod) == 0:
 			self.event_message({
 				"message": 'Scheduled notification'
 			})
