@@ -1,25 +1,27 @@
 # coding=utf-8
 from __future__ import absolute_import
+
 import os
-import sys
-
+import PIL
+import StringIO
+import flask
+import httplib
+import json
 import octoprint.plugin
-from octoprint.events import Events
-
+import octoprint.plugin
+import requests
+import sys
+import datetime
+import urllib
+import octoprint.util
+from PIL import Image
 from flask.ext.login import current_user
-
-import httplib, urllib, json
+from octoprint.events import Events
 
 __author__ = "Thijs Bekke <thijsbekke@gmail.com>"
 __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agpl.html'
 __copyright__ = "Released under terms of the AGPLv3 License"
 __plugin_name__ = "Pushover"
-
-from PIL import Image
-
-import flask, requests, StringIO, PIL
-import octoprint.plugin
-
 
 class SkipEvent(Exception):
 	pass
@@ -30,10 +32,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.SimpleApiPlugin,
 					 octoprint.plugin.TemplatePlugin,
 					 octoprint.plugin.AssetPlugin,
+					 octoprint.plugin.ProgressPlugin,
 					 octoprint.plugin.OctoPrintPlugin):
 	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
 	printing = False
+	startTime = None
+	lastMinute = 0
+	progress = 0
 
 	def get_assets(self):
 		return {
@@ -140,7 +146,50 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			output.close()
 		return image
 
-	def sent_m70(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
+	def on_print_progress(self, storage, path, progress):
+		progressMod = self._settings.get(["progressMod"])
+
+		if self.printing and progressMod and progress % int(progressMod) == 0:
+			if not self._settings.get(["token"]):
+				self._plugin_manager.send_plugin_message(self._identifier, dict(
+					type="error", 
+					title="Pushover Error", 
+					text="The default API token can not be used with the progress notification functionality",
+					delay=12000,
+					))
+				return
+
+			self.event_message({
+				"message": 'Print progress: {}%'.format(progress)
+			})
+
+	def getMinsSinceStarted(self):
+		if self.startTime:
+			return int(round((datetime.datetime.now() - self.startTime).total_seconds() / 60, 0))
+
+	def checkSchedule(self):
+		"""
+			Check the scheduler
+			Send a notification
+		"""
+		scheduleMod = self._settings.get(["scheduleMod"])
+
+		if self.printing and scheduleMod and self.lastMinute % int(scheduleMod) == 0:
+
+			if not self._settings.get(["token"]):
+				self._plugin_manager.send_plugin_message(self._identifier, dict(
+					type="error", 
+					title="Pushover Error", 
+					text="The default API token can not be used with the scheduled notification functionality",
+					delay=12000,
+					))
+				return
+
+			self.event_message({
+				"message": 'Scheduled notification'
+			})
+
+	def sent_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
 		"""
 		M70 Gcode commands are used for sending a text when print is paused
 		:param comm_instance: 
@@ -152,6 +201,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:param kwargs: 
 		:return: 
 		"""
+		if gcode and gcode != "G1":
+			mss = self.getMinsSinceStarted()
+
+			if self.lastMinute != mss:
+				self.lastMinute = mss
+				self.checkSchedule()
+		
+		
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
 
@@ -163,12 +220,12 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:param payload: 
 		:return: 
 		"""
-		self.printing =False
+		self.printing = False
+		self.lastMinute = 0
+		self.startTime = None
 		file = os.path.basename(payload["name"])
 		elapsed_time_in_seconds = payload["time"]
 
-		import datetime
-		import octoprint.util
 		elapsed_time = octoprint.util.get_formatted_timedelta(datetime.timedelta(seconds=elapsed_time_in_seconds))
 
 		# Create the message
@@ -212,6 +269,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:return: 
 		"""
 		self.printing = True
+		self.startTime = datetime.datetime.now()
 		self.m70_cmd = ""
 
 	def Error(self, payload):
@@ -358,7 +416,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		return dict(admin=[["default_token"], ["token"], ["user_key"]])
 
 	def get_token(self):
-		if self._settings.get(["token"]) is None:
+		if not self._settings.get(["token"]):
 			# If an users don't want an own API key, it is ok, you can use mine.
 			return self._settings.get(["default_token"])
 		return self._settings.get(["token"])
@@ -371,6 +429,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			sound=None,
 			device=None,
 			image=True,
+			scheduleMod=None,
+			progressMod=None,
 			events=dict(
 				PrintDone=dict(
 					name="Print done",
@@ -467,5 +527,5 @@ def __plugin_load__():
 	global __plugin_hooks__
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
-		"octoprint.comm.protocol.gcode.sent": __plugin_implementation__.sent_m70
+		"octoprint.comm.protocol.gcode.sent": __plugin_implementation__.sent_gcode
 	}
