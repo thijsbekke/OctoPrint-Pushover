@@ -150,6 +150,15 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		progressMod = self._settings.get(["progressMod"])
 
 		if self.printing and progressMod and progress % int(progressMod) == 0:
+			if not self._settings.get(["token"]):
+				self._plugin_manager.send_plugin_message(self._identifier, dict(
+					type="error", 
+					title="Pushover Error", 
+					text="The default API token can not be used with the progress notification functionality",
+					hide=False,
+					))
+				return
+
 			self.event_message({
 				"message": 'Print progress: {}%'.format(progress)
 			})
@@ -165,8 +174,17 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 		scheduleMod = self._settings.get(["scheduleMod"])
 
-
 		if self.printing and scheduleMod and self.lastMinute % int(scheduleMod) == 0:
+
+			if not self._settings.get(["token"]):
+				self._plugin_manager.send_plugin_message(self._identifier, dict(
+					type="error", 
+					title="Pushover Error", 
+					text="The default API token can not be used with the scheduled notification functionality",
+					hide=False,
+					))
+				return
+
 			self.event_message({
 				"message": 'Scheduled notification'
 			})
@@ -398,7 +416,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		return dict(admin=[["default_token"], ["token"], ["user_key"]])
 
 	def get_token(self):
-		if self._settings.get(["token"]) is None:
+		if not self._settings.get(["token"]):
 			# If an users don't want an own API key, it is ok, you can use mine.
 			return self._settings.get(["default_token"])
 		return self._settings.get(["token"])

@@ -54,6 +54,13 @@ $(function() {
         self.onBeforeBinding = function() {
             self.settings = self.settingsViewModel.settings;
         };
+
+        self.onDataUpdaterPluginMessage = function(plugin, data) {
+            if (plugin !== "pushover") return;
+
+            new PNotify(data)
+        }
+
     }
 
     // view model class, parameters for constructor, container to bind to
