@@ -155,7 +155,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					type="error", 
 					title="Pushover Error", 
 					text="The default API token can not be used with the progress notification functionality",
-					hide=False,
+					delay=12000,
 					))
 				return
 
@@ -181,7 +181,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					type="error", 
 					title="Pushover Error", 
 					text="The default API token can not be used with the scheduled notification functionality",
-					hide=False,
+					delay=12000,
 					))
 				return
 
