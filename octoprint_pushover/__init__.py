@@ -17,6 +17,7 @@ import octoprint.util
 from PIL import Image
 from flask.ext.login import current_user
 from octoprint.events import Events
+from octoprint.util import RepeatedTimer
 
 __author__ = "Thijs Bekke <thijsbekke@gmail.com>"
 __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agpl.html'
@@ -39,7 +40,24 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	printing = False
 	startTime = None
 	lastMinute = 0
+	timer = None
+	bedSent = False
+	e1Sent = False
 	progress = 0
+	emoji = {
+		'rocket': u'\U0001F680',
+		'clock': u'\U000023F0',
+		'warning': u'\U000026A0',
+		'finish': u'\U0001F3C1',
+		'hooray': u'\U0001F389',
+		'error': u'\U000026D4',
+		'stop': u'\U000025FC'
+	}
+
+	def get_emoji(self, key):
+		if key in self.emoji:
+			return self.emoji[key]
+		return ""
 
 	def get_assets(self):
 		return {
@@ -59,7 +77,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 			# When we are testing the token, create a test notification
 			payload = {
-				"message": "pewpewpew!! OctoPrint works.",
+				"message": "pewpewpew!! OctoPrint works. " + self.get_emoji("rocket"),
 				"token": data["api_key"],
 				"user": data["user_key"],
 			}
@@ -146,21 +164,62 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			output.close()
 		return image
 
+	def restart_timer(self):
+
+		# stop the timer
+		if self.timer:
+			self.timer.cancel()
+			self.timer = None
+
+		# start a new timer
+		if self.has_own_token() and self._settings.get(["events", "TempReached", "priority"]):
+			self.timer = RepeatedTimer(5, self.temp_check, None, None, True)
+			self.timer.start()
+
+
+	def temp_check(self):
+
+		if not self.has_own_token():
+			return
+
+		if not self._printer.is_operational():
+			return
+
+		self._logger.info("temp_check")
+
+		if self._settings.get(["events", "TempReached", "priority"]):
+
+			temps = self._printer.get_current_temperatures()
+
+			bed_temp = round(temps['bed']['actual']) if 'bed' in temps else 0
+			bed_target = temps['bed']['target'] if 'bed' in temps else 0
+			e1_temp = round(temps['tool0']['actual']) if 'tool0' in temps else 0
+			e1_target = temps['tool0']['target'] if 'tool0' in temps else 0
+
+			if bed_target > 0 and bed_temp >= bed_target and self.bedSent is False:
+				self.bedSent = True
+
+				self.event_message({
+					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
+				})
+
+			if e1_target > 0 and e1_temp >= e1_target and self.e1Sent is False:
+				self.e1Sent = True
+
+				self.event_message({
+					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
+				})
+
+
 	def on_print_progress(self, storage, path, progress):
-		progressMod = self._settings.get(["progressMod"])
+		if not self.has_own_token():
+			return
 
-		if self.printing and progressMod and progress % int(progressMod) == 0:
-			if not self._settings.get(["token"]):
-				self._plugin_manager.send_plugin_message(self._identifier, dict(
-					type="error", 
-					title="Pushover Error", 
-					text="The default API token can not be used with the progress notification functionality",
-					delay=12000,
-					))
-				return
+		progressMod = self._settings.get(["events", "Progress", "mod"])
 
+		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0:
 			self.event_message({
-				"message": 'Print progress: {}%'.format(progress)
+				"message": str(self._settings.get(["events", "Progress", "message"]).format(percentage=progress))
 			})
 
 	def getMinsSinceStarted(self):
@@ -172,21 +231,17 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			Check the scheduler
 			Send a notification
 		"""
-		scheduleMod = self._settings.get(["scheduleMod"])
+		if not self.has_own_token():
+			return
 
-		if self.printing and scheduleMod and self.lastMinute % int(scheduleMod) == 0:
+		scheduleMod = self._settings.get(["events", "Scheduled", "mod"])
 
-			if not self._settings.get(["token"]):
-				self._plugin_manager.send_plugin_message(self._identifier, dict(
-					type="error", 
-					title="Pushover Error", 
-					text="The default API token can not be used with the scheduled notification functionality",
-					delay=12000,
-					))
-				return
+		if self.printing and scheduleMod and self.lastMinute > 0 and self.lastMinute % int(scheduleMod) == 0:
+
 
 			self.event_message({
-				"message": 'Scheduled notification'
+				"message": str(
+					self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.lastMinute))
 			})
 
 	def sent_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
@@ -201,14 +256,15 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:param kwargs: 
 		:return: 
 		"""
+
 		if gcode and gcode != "G1":
 			mss = self.getMinsSinceStarted()
 
 			if self.lastMinute != mss:
 				self.lastMinute = mss
 				self.checkSchedule()
-		
-		
+
+
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
 
@@ -265,12 +321,26 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def PrintStarted(self, payload):
 		"""
 		Reset value's
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
+
 		self.printing = True
 		self.startTime = datetime.datetime.now()
 		self.m70_cmd = ""
+		self.bedSent = False
+		self.e1Sent = False
+		self.restart_timer()
+
+	def PrinterShutdown(self, payload):
+		"""
+		PrinterShutdown
+		:param payload: 
+		:return: 
+		"""
+		if not self.has_own_token():
+			return
+		return self._settings.get(["events", "PrinterShutdown", "message"])
 
 	def Error(self, payload):
 		"""
@@ -289,6 +359,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if payload is None:
 			payload = {}
 
+		# StatusNotPrinting
+		self._logger.info("Got an event: " + event + " Payload: " + str(payload))
 		# It's easier to ask forgiveness than to ask permission.
 		try:
 			# Method exists, and was used.
@@ -376,6 +448,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		except Exception, e:
 			self._logger.info(str(e))
 
+		self.restart_timer()
+
 	def get_settings_version(self):
 		return 1
 
@@ -400,6 +474,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		except Exception, e:
 			self._logger.info(str(e))
 
+		self.restart_timer()
+
 	def on_settings_load(self):
 		data = octoprint.plugin.SettingsPlugin.on_settings_load(self)
 
@@ -415,6 +491,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		# only used in OctoPrint versions > 1.2.16
 		return dict(admin=[["default_token"], ["token"], ["user_key"]])
 
+	def has_own_token(self):
+		return (self.get_token() != self._settings.get(["default_token"]))
+
 	def get_token(self):
 		if not self._settings.get(["token"]):
 			# If an users don't want an own API key, it is ok, you can use mine.
@@ -429,9 +508,33 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			sound=None,
 			device=None,
 			image=True,
-			scheduleMod=None,
-			progressMod=None,
 			events=dict(
+				Scheduled=dict(
+					message="Scheduled notification: {elapsed_time} minutes.",
+					priority="0",
+					token_required=True,
+					custom=True,
+					mod=0
+				),
+				Progress=dict(
+					message="Print progress: {percentage}%",
+					priority="0",
+					token_required=True,
+					custom=True,
+					mod=0
+				),
+				TempReached=dict(
+					name="Temperature reached",
+					message="Temperature reached, Bed {bed_temp}/{bed_target}, Extruder {e1_temp}/{e1_target}",
+					priority="0",
+					token_required=True
+				),
+				PrinterShutdown=dict(
+					name="Printer shutdown",
+					message="Bye bye, I am going down" + self.get_emoji("shutdown"),
+					priority="0",
+					token_required=True
+				),
 				PrintDone=dict(
 					name="Print done",
 					message="Print job finished: {file}, finished printing in {elapsed_time}",
@@ -476,7 +579,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					priority=1,
 					hidden=True
 				),
-
 			)
 		)
 
