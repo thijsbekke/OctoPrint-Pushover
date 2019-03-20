@@ -2,21 +2,16 @@
 from __future__ import absolute_import
 
 import os
-import PIL
 import StringIO
 import flask
-import httplib
 import json
 import octoprint.plugin
 import octoprint.plugin
 import requests
-import sys
 import datetime
-import urllib
 import octoprint.util
 from PIL import Image
 from flask.ext.login import current_user
-from octoprint.events import Events
 from octoprint.util import RepeatedTimer
 
 __author__ = "Thijs Bekke <thijsbekke@gmail.com>"
@@ -51,7 +46,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		'finish': u'\U0001F3C1',
 		'hooray': u'\U0001F389',
 		'error': u'\U000026D4',
-		'stop': u'\U000025FC'
+		'stop': u'\U000025FC',
+		'temp': u'\U0001F321',
 	}
 
 	def get_emoji(self, key):
@@ -166,12 +162,10 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def restart_timer(self):
 
-		# stop the timer
 		if self.timer:
 			self.timer.cancel()
 			self.timer = None
 
-		# start a new timer
 		if self.has_own_token() and self._settings.get(["events", "TempReached", "priority"]):
 			self.timer = RepeatedTimer(5, self.temp_check, None, None, True)
 			self.timer.start()
@@ -184,8 +178,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		if not self._printer.is_operational():
 			return
-
-		self._logger.info("temp_check")
 
 		if self._settings.get(["events", "TempReached", "priority"]):
 
@@ -510,7 +502,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			image=True,
 			events=dict(
 				Scheduled=dict(
-					message="Scheduled notification: {elapsed_time} minutes.",
+					message="Scheduled notification: {elapsed_time} minutes elapsed" + self.get_emoji("clock").encode("utf-8"),
 					priority="0",
 					token_required=True,
 					custom=True,
@@ -525,13 +517,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				),
 				TempReached=dict(
 					name="Temperature reached",
-					message="Temperature reached, Bed {bed_temp}/{bed_target}, Extruder {e1_temp}/{e1_target}",
+					message=self.get_emoji("temp").encode(
+						"utf-8") + "Temperature reached, Bed {bed_temp}/{bed_target}, Extruder {e1_temp}/{e1_target}",
 					priority="0",
 					token_required=True
 				),
 				PrinterShutdown=dict(
 					name="Printer shutdown",
-					message="Bye bye, I am going down" + self.get_emoji("shutdown"),
+					message="Bye bye, I am going down" + self.get_emoji("shutdown").encode("utf-8"),
 					priority="0",
 					token_required=True
 				),

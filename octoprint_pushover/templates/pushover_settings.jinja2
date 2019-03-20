@@ -2,7 +2,7 @@
 
 <div class="alert" data-bind="visible: !has_own_token()">
     <p>
-        The default API token can not be used with some notification functionality, obtain your own API key and enter it below too make the most out of this plugin.
+        {{ _('The default API token can not be used with some notification functionality, obtain your own API key and enter it below too make the most out of this plugin.') }}
     </p>
 </div>
 
@@ -12,7 +12,7 @@
 </p>{% endtrans %}
 
 <form class="form-horizontal">
-    <h4>General</h4>
+    <h4>{{ _('General') }}</h4>
 
     <div class="control-group">
         <label class="control-label">{{ _('API Key') }}</label>
@@ -78,43 +78,43 @@
     </div>
 
 
-    <h4>Scheduled notifications</h4>
+    <h4>{{ _('Scheduled notifications') }}</h4>
 
     <div class="control-group">
-        <label class="control-label">Notify me (minutes)</label>
+        <label class="control-label">{{ _('Notify me (minutes)') }}'</label>
         <div class="controls">
             <select data-bind="value: settings.plugins.pushover.events.Scheduled.mod, enable: has_own_token()">
-                <option value="">Off</option>
-                <option value="2">Every 2 minutes</option>
-                <option value="5">Every 5 minutes</option>
-                <option value="10">Every 10 minutes</option>
-                <option value="20">Every 20 minutes</option>
-                <option value="30">Every 30 minutes</option>
-                <option value="40">Every 40 minutes</option>
-                <option value="50">Every 50 minutes</option>
-                <option value="60">Every hour</option>
+                <option value="">{{ _('Off') }}</option>
+                <option value="2">{{ _('Every 2 minutes') }}</option>
+                <option value="5">{{ _('Every 5 minutes') }}</option>
+                <option value="10">{{ _('Every 10 minutes') }}</option>
+                <option value="20">{{ _('Every 20 minutes') }}</option>
+                <option value="30">{{ _('Every 30 minutes') }}</option>
+                <option value="40">{{ _('Every 40 minutes') }}</option>
+                <option value="50">{{ _('Every 50 minutes') }}</option>
+                <option value="60">{{ _('Every hour') }}</option>
             </select>
-            <span class="help-inline">Send regular updates every <i>y</i> minutes.</span>
+            <span class="help-inline">{{ _('Send regular updates every y minutes.') }}</span>
         </div>
     </div>
 
     <div class="control-group">
-        <label class="control-label">Notify me (percent)</label>
+        <label class="control-label">{{ _('Notify me (percent)') }}</label>
         <div class="controls">
             <select data-bind="value: settings.plugins.pushover.events.Progress.mod, enable: has_own_token()">
-                <option value="">Off</option>
-                <option value="2">Every 2 percent</option>
-                <option value="5">Every 5 percent</option>
-                <option value="10">Every 10 percent</option>
-                <option value="15">Every 15 percent</option>
-                <option value="20">Every 20 percent</option>
-                <option value="25">Every 25 percent</option>
+                <option value="">{{ _('Off') }}</option>
+                <option value="2">{{ _('Every 2 percent') }}</option>
+                <option value="5">{{ _('Every 5 percent') }}</option>
+                <option value="10">{{ _('Every 10 percent') }}</option>
+                <option value="15">{{ _('Every 15 percent') }}</option>
+                <option value="20">{{ _('Every 20 percent') }}</option>
+                <option value="25">{{ _('Every 25 percent') }}</option>
             </select>
-            <span class="help-inline">Send regular updates every <i>y</i> percent.</span>
+            <span class="help-inline">{{ _('Send regular updates every y percent.') }}</span>
         </div>
     </div>
 
-    <h4>Event notifications</h4>
+    <h4>{{ _('Event notifications') }}</h4>
 
     {% for key, value in plugin_pushover_events.iteritems() if not value.hidden and not value.custom %}
        <div class="control-group">
