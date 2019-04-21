@@ -502,71 +502,71 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			image=True,
 			events=dict(
 				Scheduled=dict(
-					message="Scheduled notification: {elapsed_time} minutes elapsed" + self.get_emoji("clock").encode("utf-8"),
+					message="Scheduled Notification: {elapsed_time} Minutes Elapsed" + self.get_emoji("clock").encode("utf-8"),
 					priority="0",
 					token_required=True,
 					custom=True,
 					mod=0
 				),
 				Progress=dict(
-					message="Print progress: {percentage}%",
+					message="Print Progress: {percentage}%",
 					priority="0",
 					token_required=True,
 					custom=True,
 					mod=0
 				),
 				TempReached=dict(
-					name="Temperature reached",
+					name="Temperature Reached",
 					message=self.get_emoji("temp").encode(
-						"utf-8") + "Temperature reached, Bed {bed_temp}/{bed_target}, Extruder {e1_temp}/{e1_target}",
+						"utf-8") + "Temperature Reached! Bed: {bed_temp}/{bed_target} | Extruder: {e1_temp}/{e1_target}",
 					priority="0",
 					token_required=True
 				),
 				PrinterShutdown=dict(
-					name="Printer shutdown",
+					name="Printer Shutdown",
 					message="Bye bye, I am going down" + self.get_emoji("shutdown").encode("utf-8"),
 					priority="0",
 					token_required=True
 				),
 				PrintDone=dict(
-					name="Print done",
-					message="Print job finished: {file}, finished printing in {elapsed_time}",
+					name="Print Done",
+					message="Print Job Finished: {file}, Finished Printing in {elapsed_time}",
 					priority="0"
 				),
 				PrintFailed=dict(
-					name="Print failed",
-					message="Print job failed: {file}",
+					name="Print Failed",
+					message="Print Job Failed: {file}",
 					priority=0
 				),
 				PrintPaused=dict(
-					name="Print paused",
+					name="Print Paused",
 					help="Send a notification when a Pause event is received. When a <code>m70</code> was sent "
 						 "to the printer, the message will be appended to the notification.",
-					message="Print job paused {m70_cmd}",
+					message="Print Job Paused {m70_cmd}",
 					priority=0
 				),
 				Waiting=dict(
-					name="Printer is waiting",
+					name="Printer is Waiting",
 					help="Send a notification when a Waiting event is received. When a <code>m70</code> was sent "
 						 "to the printer, the message will be appended to the notification.",
-					message="Printer is waiting {m70_cmd}",
+					message="Printer is Waiting {m70_cmd}",
 					priority=0
 				),
 				Alert=dict(
-					name="Alert event (M300)",
-					message="Alert, The printer issued a alert (beep) via M300",
+					name="Alert Event (M300)",
+					message="Alert! The printer issued a alert (beep) via M300",
 					priority=1,
 					hidden=True
 				),
 				EStop=dict(
-					name="Panic event (M112)",
+					name="Panic Event (M112)",
 					message="Panic!! The printer issued a panic stop (M112)",
 					priority=1,
 					hidden=True
 				),
 				# See: src/octoprint/util/comm.py:2009
 				Error=dict(
-					name="Error event",
+					name="Error Event",
 					help="This event occurs when for example your temperature sensor disconnects.",
 					message="Error!! An error has occurred in the printer communication. {error}",
 					priority=1,
