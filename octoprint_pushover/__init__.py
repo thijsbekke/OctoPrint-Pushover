@@ -324,6 +324,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		self.e1Sent = False
 		self.restart_timer()
 
+		if not self.has_own_token():
+			return
+		return self._settings.get(["events", "PrinterStarted", "message"])
+
+
 	def PrinterShutdown(self, payload):
 		"""
 		PrinterShutdown
@@ -525,6 +530,12 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				PrinterShutdown=dict(
 					name="Printer Shutdown",
 					message="Bye bye, I am going down" + self.get_emoji("shutdown").encode("utf-8"),
+					priority="0",
+					token_required=True
+				),
+				PrintStarted=dict(
+					name="Print Started",
+					message="Print Job Started",
 					priority="0",
 					token_required=True
 				),
