@@ -328,7 +328,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if not self.has_own_token():
 			return
 
-		return self._settings.get(["events", "PrinterStarted", "message"])
+		return self._settings.get(["events", "PrintStarted", "message"])
 
 
 	def PrinterShutdown(self, payload):
