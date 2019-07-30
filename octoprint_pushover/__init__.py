@@ -33,11 +33,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
 	printing = False
-	startTime = None
-	lastMinute = 0
+	start_time = None
+	last_minute = 0
+	last_progress = 0
+	first_layer = False
 	timer = None
-	bedSent = False
-	e1Sent = False
+	bed_sent = False
+	e1_sent = False
 	progress = 0
 	emoji = {
 		'rocket': u'\U0001F680',
@@ -48,6 +50,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		'error': u'\U000026D4',
 		'stop': u'\U000025FC',
 		'temp': u'\U0001F321',
+		'four_leaf_clover': u'\U0001f340',
+		'waving_hand_sign': u'\U0001f44b',
 	}
 
 	def get_emoji(self, key):
@@ -170,7 +174,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			self.timer = RepeatedTimer(5, self.temp_check, None, None, True)
 			self.timer.start()
 
-
 	def temp_check(self):
 
 		if not self.has_own_token():
@@ -188,20 +191,19 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			e1_temp = round(temps['tool0']['actual']) if 'tool0' in temps else 0
 			e1_target = temps['tool0']['target'] if 'tool0' in temps else 0
 
-			if bed_target > 0 and bed_temp >= bed_target and self.bedSent is False:
-				self.bedSent = True
+			if bed_target > 0 and bed_temp >= bed_target and self.bed_sent is False:
+				self.bed_sent = True
 
 				self.event_message({
 					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
 				})
 
-			if e1_target > 0 and e1_temp >= e1_target and self.e1Sent is False:
-				self.e1Sent = True
+			if e1_target > 0 and e1_temp >= e1_target and self.e1_sent is False:
+				self.e1_sent = True
 
 				self.event_message({
 					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
 				})
-
 
 	def on_print_progress(self, storage, path, progress):
 		if not self.has_own_token():
@@ -209,16 +211,17 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		progressMod = self._settings.get(["events", "Progress", "mod"])
 
-		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0:
+		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0 and self.last_progress != progress:
+			self.last_progress = progress
 			self.event_message({
 				"message": str(self._settings.get(["events", "Progress", "message"]).format(percentage=progress))
 			})
 
-	def getMinsSinceStarted(self):
-		if self.startTime:
-			return int(round((datetime.datetime.now() - self.startTime).total_seconds() / 60, 0))
+	def get_mins_since_started(self):
+		if self.start_time:
+			return int(round((datetime.datetime.now() - self.start_time).total_seconds() / 60, 0))
 
-	def checkSchedule(self):
+	def check_schedule(self):
 		"""
 			Check the scheduler
 			Send a notification
@@ -228,12 +231,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		scheduleMod = self._settings.get(["events", "Scheduled", "mod"])
 
-		if self.printing and scheduleMod and self.lastMinute > 0 and self.lastMinute % int(scheduleMod) == 0:
-
+		if self.printing and scheduleMod and self.last_minute > 0 and self.last_minute % int(scheduleMod) == 0:
 
 			self.event_message({
 				"message": str(
-					self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.lastMinute))
+					self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.last_minute))
 			})
 
 	def sent_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
@@ -250,11 +252,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 
 		if gcode and gcode != "G1":
-			mss = self.getMinsSinceStarted()
+			mss = self.get_mins_since_started()
 
-			if self.lastMinute != mss:
-				self.lastMinute = mss
-				self.checkSchedule()
+			if self.last_minute != mss:
+				self.last_minute = mss
+				self.check_schedule()
 
 
 		if gcode and gcode == "M70":
@@ -269,8 +271,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:return: 
 		"""
 		self.printing = False
-		self.lastMinute = 0
-		self.startTime = None
+		self.last_minute = 0
+		self.last_progress = 0
+		self.start_time = None
 		file = os.path.basename(payload["name"])
 		elapsed_time_in_seconds = payload["time"]
 
@@ -318,13 +321,42 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 
 		self.printing = True
-		self.startTime = datetime.datetime.now()
+		self.start_time = datetime.datetime.now()
 		self.m70_cmd = ""
-		self.bedSent = False
-		self.e1Sent = False
+		self.bed_sent = False
+		self.e1_sent = False
+		self.first_layer = True
 		self.restart_timer()
 
-	def PrinterShutdown(self, payload):
+		if not self.has_own_token():
+			return
+
+		return self._settings.get(["events", "PrintStarted", "message"])
+
+	def ZChange(self, payload):
+		"""
+		ZChange event which send a notification, this does not work when printing from sd
+		:param payload: 
+		:return: 
+		"""
+
+		if not self.has_own_token():
+			return
+
+		if not self.printing:
+			return
+
+		if not self.first_layer:
+			return
+
+		# It is not actually the first layer, it was not my plan too create a lot of code for this feature
+		if payload["new"] < 1 or payload["old"] is None:
+			return
+
+		self.first_layer = False
+		return self._settings.get(["events", "ZChange", "message"]).format(**locals())
+
+	def Shutdown(self, payload):
 		"""
 		PrinterShutdown
 		:param payload: 
@@ -332,7 +364,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 		if not self.has_own_token():
 			return
-		return self._settings.get(["events", "PrinterShutdown", "message"])
+		return self._settings.get(["events", "Shutdown", "message"])
 
 	def Error(self, payload):
 		"""
@@ -360,6 +392,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 			self._logger.info("Event triggered: %s " % str(event))
 		except AttributeError:
+			self._logger.debug("event: " + event + " has an AttributeError" + str(payload))
 			# By default the message is simple and does not need any formatting
 			payload["message"] = self._settings.get(["events", event, "message"])
 		except SkipEvent:
@@ -369,6 +402,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		# Does the event exists in the settings ? if not we don't want it
 		if not event in self.get_settings_defaults()["events"]:
 			return
+
+		self._logger.debug("Payload message: %s " % str(payload["message"]))
 
 		# Only continue when there is a priority
 		priority = self._settings.get(["events", event, "priority"])
@@ -522,9 +557,15 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					priority="0",
 					token_required=True
 				),
-				PrinterShutdown=dict(
+				Shutdown=dict(
 					name="Printer Shutdown",
-					message="Bye bye, I am going down" + self.get_emoji("shutdown").encode("utf-8"),
+					message="Bye bye, I am shutting down " + self.get_emoji("waving_hand_sign").encode("utf-8"),
+					priority="0",
+					token_required=True
+				),
+				PrintStarted=dict(
+					name="Print Started",
+					message="Print Job Started",
 					priority="0",
 					token_required=True
 				),
@@ -551,6 +592,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 						 "to the printer, the message will be appended to the notification.",
 					message="Printer is Waiting {m70_cmd}",
 					priority=0
+				),
+				ZChange=dict(
+					name="After first couple of layer",
+					help="Send a notification when the 'first' couple of layers is done.",
+					message="First couple of layers are done " + self.get_emoji("four_leaf_clover").encode("utf-8"),
+					priority=0,
+					token_required=True
 				),
 				Alert=dict(
 					name="Alert Event (M300)",
@@ -623,4 +671,5 @@ def __plugin_load__():
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
 		"octoprint.comm.protocol.gcode.sent": __plugin_implementation__.sent_gcode
+
 	}
