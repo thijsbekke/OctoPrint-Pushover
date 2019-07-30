@@ -36,6 +36,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	start_time = None
 	last_minute = 0
 	last_progress = 0
+	first_layer = False
 	timer = None
 	bed_sent = False
 	e1_sent = False
@@ -49,6 +50,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		'error': u'\U000026D4',
 		'stop': u'\U000025FC',
 		'temp': u'\U0001F321',
+		'four_leaf_clover': u'\U0001f340',
+		'waving_hand_sign': u'\U0001f44b',
 	}
 
 	def get_emoji(self, key):
@@ -170,7 +173,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if self.has_own_token() and self._settings.get(["events", "TempReached", "priority"]):
 			self.timer = RepeatedTimer(5, self.temp_check, None, None, True)
 			self.timer.start()
-
 
 	def temp_check(self):
 
@@ -323,6 +325,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		self.m70_cmd = ""
 		self.bed_sent = False
 		self.e1_sent = False
+		self.first_layer = True
 		self.restart_timer()
 
 		if not self.has_own_token():
@@ -330,8 +333,30 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		return self._settings.get(["events", "PrintStarted", "message"])
 
+	def ZChange(self, payload):
+		"""
+		ZChange event which send a notification, this does not work when printing from sd
+		:param payload: 
+		:return: 
+		"""
 
-	def PrinterShutdown(self, payload):
+		if not self.has_own_token():
+			return
+
+		if not self.printing:
+			return
+
+		if not self.first_layer:
+			return
+
+		# It is not actually the first layer, it was not my plan too create a lot of code for this feature
+		if payload["new"] < 1 or payload["old"] is None:
+			return
+
+		self.first_layer = False
+		return self._settings.get(["events", "ZChange", "message"]).format(**locals())
+
+	def Shutdown(self, payload):
 		"""
 		PrinterShutdown
 		:param payload: 
@@ -339,7 +364,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 		if not self.has_own_token():
 			return
-		return self._settings.get(["events", "PrinterShutdown", "message"])
+		return self._settings.get(["events", "Shutdown", "message"])
 
 	def Error(self, payload):
 		"""
@@ -367,6 +392,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 			self._logger.info("Event triggered: %s " % str(event))
 		except AttributeError:
+			self._logger.debug("event: " + event + " has an AttributeError" + str(payload))
 			# By default the message is simple and does not need any formatting
 			payload["message"] = self._settings.get(["events", event, "message"])
 		except SkipEvent:
@@ -376,6 +402,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		# Does the event exists in the settings ? if not we don't want it
 		if not event in self.get_settings_defaults()["events"]:
 			return
+
+		self._logger.debug("Payload message: %s " % str(payload["message"]))
 
 		# Only continue when there is a priority
 		priority = self._settings.get(["events", event, "priority"])
@@ -529,9 +557,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					priority="0",
 					token_required=True
 				),
-				PrinterShutdown=dict(
+				Shutdown=dict(
 					name="Printer Shutdown",
-					message="Bye bye, I am going down" + self.get_emoji("shutdown").encode("utf-8"),
+					message="Bye bye, I am shutting down " + self.get_emoji("waving_hand_sign").encode("utf-8"),
 					priority="0",
 					token_required=True
 				),
@@ -564,6 +592,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 						 "to the printer, the message will be appended to the notification.",
 					message="Printer is Waiting {m70_cmd}",
 					priority=0
+				),
+				ZChange=dict(
+					name="After first couple of layer",
+					help="Send a notification when the 'first' couple of layers is done.",
+					message="First couple of layers are done " + self.get_emoji("four_leaf_clover").encode("utf-8"),
+					priority=0,
+					token_required=True
 				),
 				Alert=dict(
 					name="Alert Event (M300)",
@@ -636,4 +671,5 @@ def __plugin_load__():
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
 		"octoprint.comm.protocol.gcode.sent": __plugin_implementation__.sent_gcode
+
 	}
