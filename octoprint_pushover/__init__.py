@@ -33,11 +33,12 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	api_url = "https://api.pushover.net/1"
 	m70_cmd = ""
 	printing = False
-	startTime = None
-	lastMinute = 0
+	start_time = None
+	last_minute = 0
+	last_progress = 0
 	timer = None
-	bedSent = False
-	e1Sent = False
+	bed_sent = False
+	e1_sent = False
 	progress = 0
 	emoji = {
 		'rocket': u'\U0001F680',
@@ -188,20 +189,19 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			e1_temp = round(temps['tool0']['actual']) if 'tool0' in temps else 0
 			e1_target = temps['tool0']['target'] if 'tool0' in temps else 0
 
-			if bed_target > 0 and bed_temp >= bed_target and self.bedSent is False:
-				self.bedSent = True
+			if bed_target > 0 and bed_temp >= bed_target and self.bed_sent is False:
+				self.bed_sent = True
 
 				self.event_message({
 					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
 				})
 
-			if e1_target > 0 and e1_temp >= e1_target and self.e1Sent is False:
-				self.e1Sent = True
+			if e1_target > 0 and e1_temp >= e1_target and self.e1_sent is False:
+				self.e1_sent = True
 
 				self.event_message({
 					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
 				})
-
 
 	def on_print_progress(self, storage, path, progress):
 		if not self.has_own_token():
@@ -209,16 +209,17 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		progressMod = self._settings.get(["events", "Progress", "mod"])
 
-		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0:
+		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0 and self.last_progress != progress:
+			self.last_progress = progress
 			self.event_message({
 				"message": str(self._settings.get(["events", "Progress", "message"]).format(percentage=progress))
 			})
 
-	def getMinsSinceStarted(self):
-		if self.startTime:
-			return int(round((datetime.datetime.now() - self.startTime).total_seconds() / 60, 0))
+	def get_mins_since_started(self):
+		if self.start_time:
+			return int(round((datetime.datetime.now() - self.start_time).total_seconds() / 60, 0))
 
-	def checkSchedule(self):
+	def check_schedule(self):
 		"""
 			Check the scheduler
 			Send a notification
@@ -228,12 +229,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		scheduleMod = self._settings.get(["events", "Scheduled", "mod"])
 
-		if self.printing and scheduleMod and self.lastMinute > 0 and self.lastMinute % int(scheduleMod) == 0:
-
+		if self.printing and scheduleMod and self.last_minute > 0 and self.last_minute % int(scheduleMod) == 0:
 
 			self.event_message({
 				"message": str(
-					self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.lastMinute))
+					self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.last_minute))
 			})
 
 	def sent_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
@@ -250,11 +250,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 
 		if gcode and gcode != "G1":
-			mss = self.getMinsSinceStarted()
+			mss = self.get_mins_since_started()
 
-			if self.lastMinute != mss:
-				self.lastMinute = mss
-				self.checkSchedule()
+			if self.last_minute != mss:
+				self.last_minute = mss
+				self.check_schedule()
 
 
 		if gcode and gcode == "M70":
@@ -269,8 +269,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:return: 
 		"""
 		self.printing = False
-		self.lastMinute = 0
-		self.startTime = None
+		self.last_minute = 0
+		self.last_progress = 0
+		self.start_time = None
 		file = os.path.basename(payload["name"])
 		elapsed_time_in_seconds = payload["time"]
 
@@ -318,14 +319,15 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 
 		self.printing = True
-		self.startTime = datetime.datetime.now()
+		self.start_time = datetime.datetime.now()
 		self.m70_cmd = ""
-		self.bedSent = False
-		self.e1Sent = False
+		self.bed_sent = False
+		self.e1_sent = False
 		self.restart_timer()
 
 		if not self.has_own_token():
 			return
+
 		return self._settings.get(["events", "PrinterStarted", "message"])
 
 
