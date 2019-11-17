@@ -390,6 +390,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			# Method exists, and was used.
 			payload["message"] = getattr(self, event)(payload)
 
+			if not payload["message"]:
+				return
+
 			self._logger.info("Event triggered: %s " % str(event))
 		except AttributeError:
 			self._logger.debug("event: " + event + " has an AttributeError" + str(payload))
