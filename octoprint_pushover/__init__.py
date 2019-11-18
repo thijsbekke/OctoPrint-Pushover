@@ -19,9 +19,6 @@ __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agp
 __copyright__ = "Released under terms of the AGPLv3 License"
 __plugin_name__ = "Pushover"
 
-class SkipEvent(Exception):
-	pass
-
 class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.SettingsPlugin,
 					 octoprint.plugin.StartupPlugin,
@@ -375,7 +372,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if(self.printing):
 			error = payload["error"]
 			return self._settings.get(["events", "Error", "message"]).format(**locals())
-		raise SkipEvent()
+		return
 
 
 	def on_event(self, event, payload):
@@ -390,16 +387,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			# Method exists, and was used.
 			payload["message"] = getattr(self, event)(payload)
 
-			if not payload["message"]:
-				return
-
 			self._logger.info("Event triggered: %s " % str(event))
 		except AttributeError:
 			self._logger.debug("event: " + event + " has an AttributeError" + str(payload))
 			# By default the message is simple and does not need any formatting
 			payload["message"] = self._settings.get(["events", event, "message"])
-		except SkipEvent:
-			# Return when we can skip this event
+
+		if payload["message"] is None:
 			return
 
 		# Does the event exists in the settings ? if not we don't want it
