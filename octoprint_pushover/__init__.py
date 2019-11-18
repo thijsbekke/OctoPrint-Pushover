@@ -353,6 +353,16 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		self.first_layer = False
 		return self._settings.get(["events", "ZChange", "message"]).format(**locals())
 
+	def Startup(self, payload):
+		"""
+		Event triggered when printer is started up
+		:param payload: 
+		:return: 
+		"""
+		if not self.has_own_token():
+			return
+		return self._settings.get(["events", "Startup", "message"])
+
 	def Shutdown(self, payload):
 		"""
 		PrinterShutdown
@@ -557,6 +567,12 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				Shutdown=dict(
 					name="Printer Shutdown",
 					message="Bye bye, I am shutting down " + self.get_emoji("waving_hand_sign").encode("utf-8"),
+					priority="0",
+					token_required=True
+				),
+				Startup=dict(
+					name="Printer Startup",
+					message="Hello, Let's print something nice today " + self.get_emoji("waving_hand_sign").encode("utf-8"),
 					priority="0",
 					token_required=True
 				),
