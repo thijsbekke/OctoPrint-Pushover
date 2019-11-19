@@ -19,9 +19,6 @@ __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agp
 __copyright__ = "Released under terms of the AGPLv3 License"
 __plugin_name__ = "Pushover"
 
-class SkipEvent(Exception):
-	pass
-
 class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.SettingsPlugin,
 					 octoprint.plugin.StartupPlugin,
@@ -356,6 +353,16 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		self.first_layer = False
 		return self._settings.get(["events", "ZChange", "message"]).format(**locals())
 
+	def Startup(self, payload):
+		"""
+		Event triggered when printer is started up
+		:param payload: 
+		:return: 
+		"""
+		if not self.has_own_token():
+			return
+		return self._settings.get(["events", "Startup", "message"])
+
 	def Shutdown(self, payload):
 		"""
 		PrinterShutdown
@@ -375,7 +382,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if(self.printing):
 			error = payload["error"]
 			return self._settings.get(["events", "Error", "message"]).format(**locals())
-		raise SkipEvent()
+		return
 
 
 	def on_event(self, event, payload):
@@ -390,13 +397,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			# Method exists, and was used.
 			payload["message"] = getattr(self, event)(payload)
 
-			self._logger.info("Event triggered: %s " % str(event))
+			self._logger.debug("Event triggered: %s " % str(event))
 		except AttributeError:
 			self._logger.debug("event: " + event + " has an AttributeError" + str(payload))
 			# By default the message is simple and does not need any formatting
 			payload["message"] = self._settings.get(["events", event, "message"])
-		except SkipEvent:
-			# Return when we can skip this event
+
+		if payload["message"] is None:
 			return
 
 		# Does the event exists in the settings ? if not we don't want it
@@ -561,6 +568,11 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					name="Printer Shutdown",
 					message="Bye bye, I am shutting down " + self.get_emoji("waving_hand_sign").encode("utf-8"),
 					priority="0",
+					token_required=True
+				),
+				Startup=dict(
+					name="Printer Startup",
+					message="Hello, Let's print something nice today " + self.get_emoji("waving_hand_sign").encode("utf-8"),
 					token_required=True
 				),
 				PrintStarted=dict(
