@@ -573,7 +573,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				Startup=dict(
 					name="Printer Startup",
 					message="Hello, Let's print something nice today " + self.get_emoji("waving_hand_sign").encode("utf-8"),
-					priority="0",
 					token_required=True
 				),
 				PrintStarted=dict(
