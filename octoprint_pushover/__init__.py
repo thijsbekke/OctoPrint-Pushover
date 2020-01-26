@@ -13,6 +13,8 @@ import octoprint.util
 from PIL import Image
 from flask.ext.login import current_user
 from octoprint.util import RepeatedTimer
+import RPi.GPIO as GPIO
+from time import sleep
 
 __author__ = "Thijs Bekke <thijsbekke@gmail.com>"
 __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agpl.html'
@@ -133,12 +135,35 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		Transpose this image according the settings and returns it 
 		:return: 
 		"""
+
+		# turn on the lighting if it wasn't turned on
+		# if self._settings.global_get()
+		lighting_pin = self.to_int(self._settings.get(["lighting_pin"]))
+		lighting_pin_low = self._settings.get(["lighting_pin_low"])
+		self._logger.debug("Lighting PIN: %s " % str(lighting_pin))
+		if lighting_pin:
+			original_lighting_state = GPIO.input(lighting_pin)
+			self._logger.debug("state: %s " % str(original_lighting_state))
+			if lighting_pin_low:
+				self._logger.debug("Setting to LOW")
+				GPIO.output(lighting_pin, GPIO.LOW)
+			else:
+				self._logger.debug("Setting to HIGH")
+				GPIO.output(lighting_pin, GPIO.HIGH)
+			sleep(4)
+
+
 		snapshot_url = self._settings.global_get(["webcam", "snapshot"])
 		if not snapshot_url:
 			return None
 
 		self._logger.debug("Snapshot URL: %s " % str(snapshot_url))
 		image = requests.get(snapshot_url, stream=True).content
+
+		# return Lighting PIN to original state (avoid conflicts with Enclosure Plugin)
+		if lighting_pin:
+			self._logger.debug("reset to state: %s " % str(original_lighting_state))
+			GPIO.output(lighting_pin, original_lighting_state)
 
 		hflip = self._settings.global_get(["webcam", "flipH"])
 		vflip = self._settings.global_get(["webcam", "flipV"])
@@ -160,6 +185,25 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			image = output.getvalue()
 			output.close()
 		return image
+
+	def setup_gpio(self):
+		try:
+			GPIO.setmode(GPIO.BCM)
+			lighting_pin = self.to_int(self._settings.get(["lighting_pin"]))
+			lighting_pin_low = self._settings.get(["lighting_pin_low"])
+			initial_value = GPIO.HIGH if lighting_pin_low else GPIO.LOW
+			if lighting_pin:
+				GPIO.setup(lighting_pin, GPIO.OUT, initial=initial_value)
+		except Exception as ex:
+			self.log_error(ex)
+
+	@staticmethod
+	def to_int(value):
+		try:
+			val = int(value)
+			return val
+		except:
+			return 0
 
 	def restart_timer(self):
 
@@ -477,6 +521,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		Valide settings on startup
 		:return: 
 		"""
+
+		self.setup_gpio()
+
 		try:
 			self.validate_pushover(self.get_token(), self._settings.get(["user_key"]))
 		except Exception, e:
