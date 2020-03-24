@@ -507,7 +507,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			if self._settings.get(["image"]) or ("image" in payload and payload["image"]):
 				files['attachment'] = ("image.jpg", self.image())
 		except Exception, e:
-			self._logger.info("Could not load image from url")
+			self._logger.info("Could not load image from url: %s" + str(e))
 
 		# Multiple try catches so it will always send a message if the image raises an Exception
 		try:
