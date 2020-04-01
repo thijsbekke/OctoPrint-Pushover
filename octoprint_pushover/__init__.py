@@ -13,6 +13,9 @@ import octoprint.util
 from PIL import Image
 from flask.ext.login import current_user
 from octoprint.util import RepeatedTimer
+from threading import Timer
+import RPi.GPIO as GPIO
+from time import sleep
 
 __author__ = "Thijs Bekke <thijsbekke@gmail.com>"
 __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agpl.html'
@@ -32,12 +35,15 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	printing = False
 	start_time = None
 	last_minute = 0
+	light_up_delay = 4
 	last_progress = 0
 	first_layer = False
 	timer = None
+	event_timer = None
 	bed_sent = False
 	e1_sent = False
 	progress = 0
+	original_lighting_state = False
 	emoji = {
 		'rocket': u'\U0001F680',
 		'clock': u'\U000023F0',
@@ -89,7 +95,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			# Validate the user key and send a message
 			try:
 				self.validate_pushover(data["api_key"], data["user_key"])
-				self.event_message(payload)
+				self.schedule_event_message(payload)
 				return flask.jsonify(dict(success=True))
 			except Exception as e:
 				return flask.jsonify(dict(success=False, msg=str(e.message)))
@@ -127,12 +133,35 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		return False
 
+	def lights_on(self):
+		# turn on the lighting if it wasn't turned on
+		lighting_pin = self.to_int(self._settings.get(["lighting_pin"]))
+		lighting_pin_low = self._settings.get(["lighting_pin_low"])
+		self._logger.debug("Lighting PIN: %s " % str(lighting_pin))
+		if lighting_pin:
+			self.original_lighting_state = GPIO.input(lighting_pin)
+			self._logger.debug("state: %s " % str(self.original_lighting_state))
+			if lighting_pin_low:
+				self._logger.debug("Setting to LOW")
+				GPIO.output(lighting_pin, GPIO.LOW)
+			else:
+				self._logger.debug("Setting to HIGH")
+				GPIO.output(lighting_pin, GPIO.HIGH)
+
 	def image(self):
 		"""
 		Create an image by getting an image form the setting webcam-snapshot. 
 		Transpose this image according the settings and returns it 
 		:return: 
 		"""
+
+		"""
+		# not printing means light wasn't turned on X seconds before image is supposed to be taken
+		if not self.printing:
+			self.lights_on()
+			sleep(4)
+		"""
+
 		snapshot_url = self._settings.global_get(["webcam", "snapshot"])
 		if not snapshot_url:
 			return None
@@ -160,6 +189,25 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			image = output.getvalue()
 			output.close()
 		return image
+
+	def setup_gpio(self):
+		try:
+			GPIO.setmode(GPIO.BCM)
+			lighting_pin = self.to_int(self._settings.get(["lighting_pin"]))
+			lighting_pin_low = self._settings.get(["lighting_pin_low"])
+			initial_value = GPIO.HIGH if lighting_pin_low else GPIO.LOW
+			if lighting_pin:
+				GPIO.setup(lighting_pin, GPIO.OUT, initial=initial_value)
+		except Exception as ex:
+			self.log_error(ex)
+
+	@staticmethod
+	def to_int(value):
+		try:
+			val = int(value)
+			return val
+		except:
+			return 0
 
 	def restart_timer(self):
 
@@ -191,14 +239,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			if bed_target > 0 and bed_temp >= bed_target and self.bed_sent is False:
 				self.bed_sent = True
 
-				self.event_message({
+				self.schedule_event_message({
 					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
 				})
 
 			if e1_target > 0 and e1_temp >= e1_target and self.e1_sent is False:
 				self.e1_sent = True
 
-				self.event_message({
+				self.schedule_event_message({
 					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
 				})
 
@@ -210,7 +258,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0 and self.last_progress != progress:
 			self.last_progress = progress
-			self.event_message({
+			self.schedule_event_message({
 				"message": str(self._settings.get(["events", "Progress", "message"]).format(percentage=progress))
 			})
 
@@ -230,7 +278,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		if self.printing and scheduleMod and self.last_minute > 0 and self.last_minute % int(scheduleMod) == 0:
 
-			self.event_message({
+			self.schedule_event_message({
 				"message": str(
 					self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.last_minute))
 			})
@@ -254,7 +302,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			if self.last_minute != mss:
 				self.last_minute = mss
 				self.check_schedule()
-
 
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
@@ -419,6 +466,25 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		# We do not support the Emergency Priority (2) because there is no way of canceling it here,
 		if priority:
 			payload["priority"] = priority
+			self.schedule_event_message(payload)
+
+	def schedule_event_message(self, payload):
+		lighting_pin = self.to_int(self._settings.get(["lighting_pin"]))
+
+		if lighting_pin:
+			self.lights_on()
+			if not self.printing:
+				self._logger.debug("Lighting up and sleeping for %d s before event w/payload: %s" % (self.light_up_delay, str(payload)))
+				sleep(self.light_up_delay)
+				self.event_message(payload)
+			else:
+				self._logger.debug("Scheduling event after delay of %d s" % self.light_up_delay)
+				self.event_timer = Timer(self.light_up_delay, lambda: self.event_message(payload))
+				self.event_timer.daemon = True
+				self.event_timer.start()
+				self._logger.debug("Event scheduled successfully with payload %s " % str(payload))
+		else:
+			self._logger.debug("No light up before event w/payload: %s" % str(payload))
 			self.event_message(payload)
 
 	def event_message(self, payload):
@@ -427,6 +493,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		:param payload: 
 		:return: 
 		"""
+		self._logger.debug("Event message: %s" % str(payload))
+
 		# Create an url, if the fqdn is not correct you can manually set it at your config.yaml
 		url = self._settings.get(["url"])
 		if (url):
@@ -463,7 +531,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			if self._settings.get(["image"]) or ("image" in payload and payload["image"]):
 				files['attachment'] = ("image.jpg", self.image())
 		except Exception, e:
-			self._logger.info("Could not load image from url")
+			self._logger.info("Could not load image from url: %s" + str(e))
+
+
+		lighting_pin = self.to_int(self._settings.get(["lighting_pin"]))
+		# return Lighting PIN to original state (avoid conflicts with Enclosure Plugin)
+		if lighting_pin:
+			self._logger.debug("reset to state: %s " % str(self.original_lighting_state))
+			GPIO.output(lighting_pin, self.original_lighting_state)
 
 		# Multiple try catches so it will always send a message if the image raises an Exception
 		try:
@@ -477,6 +552,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		Valide settings on startup
 		:return: 
 		"""
+
+		self.setup_gpio()
+
 		try:
 			self.validate_pushover(self.get_token(), self._settings.get(["user_key"]))
 		except Exception, e:

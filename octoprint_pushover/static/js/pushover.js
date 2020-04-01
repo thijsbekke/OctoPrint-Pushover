@@ -20,6 +20,8 @@ $(function() {
             var sound = $('#pushover-sound option:selected').text();
             var device = $('#device').val();
             var image = $('#image').is(':checked');
+            var lighting_pin = $('#lighting_pin').val();
+            var lighting_pin_low = $('#lighting_pin_low').is(':checked');
 
             var payload = {
                 command: "test",
@@ -28,6 +30,8 @@ $(function() {
                 sound: sound,
                 device: device,
                 image: image,
+                lighting_pin: lighting_pin,
+                lighting_pin_low: lighting_pin_low,
             };
 
             $.ajax({

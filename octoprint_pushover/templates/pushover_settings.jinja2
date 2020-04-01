@@ -69,10 +69,26 @@
         </div>
     </div>
 
+    <h4>{{ _('Webcam') }}</h4>
+
     <div class="control-group">
         <div class="controls">
             <label class="checkbox">
                 <input type="checkbox" data-bind="checked: settings.plugins.pushover.image" id="image"> {{ _('Use the camera of Octoprint to send a image') }}
+            </label>
+        </div>
+
+        <div class="controls">
+            <label class="control-label">{{ _('Lighting Pin') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" id="lighting_pin" data-bind="value: settings.plugins.pushover.lighting_pin">
+                {{ _('GPIO pin to turn on before taking picture (will turn on light briefly for webcam to take picture)') }}
+            </div>
+        </div>
+
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.pushover.lighting_pin_low" id="lighting_pin_low"> {{ _('Active low means that the GPIO will turn on when receive a low signal (ground) from Raspberry PI') }}
             </label>
         </div>
     </div>
