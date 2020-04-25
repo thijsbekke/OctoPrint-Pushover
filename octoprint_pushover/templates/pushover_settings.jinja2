@@ -62,8 +62,8 @@
         <label class="control-label">{{ _('Sound') }}</label>
         <div class="controls">
             <select id="pushover-sound" data-bind="value: settings.plugins.pushover.sound">
-                {% for item in plugin_pushover_sounds -%}
-                    <option value="{{ item }}">{{ item }}</option>
+                {% for key,value in plugin_pushover_sounds.items() -%}
+                    <option value="{{ key }}">{{ value }}</option>
                 {%- endfor %}
             </select>
         </div>
@@ -123,7 +123,7 @@
 
     <h4>{{ _('Event notifications') }}</h4>
 
-    {% for key, value in plugin_pushover_events.iteritems() if not value.hidden and not value.custom %}
+    {% for key, value in plugin_pushover_events.items() if not value.hidden and not value.custom %}
        <div class="control-group">
             <label class="control-label">{{ value.name }}</label>
             <div class="controls">
@@ -145,7 +145,7 @@
         <div><small><a href="#" class="muted" onclick="$(this).children().toggleClass('icon-caret-right icon-caret-down').parent().parent().parent().next().slideToggle('fast')"><i class="icon-caret-right"></i> {{ _('Advanced options') }}</a></small></div>
         <div class="hide">
 
-            {% for key, value in plugin_pushover_events.iteritems() if value.hidden and not value.custom %}
+            {% for key, value in plugin_pushover_events.items() if value.hidden and not value.custom %}
             <div class="control-group">
                 <label class="control-label">{{ value.name }}</label>
                 <div class="controls">
