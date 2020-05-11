@@ -1,8 +1,7 @@
 # coding=utf-8
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
-import StringIO
 import flask
 import json
 import octoprint.plugin
@@ -10,14 +9,16 @@ import octoprint.plugin
 import requests
 import datetime
 import octoprint.util
+from io import StringIO
 from PIL import Image
-from flask.ext.login import current_user
+from flask_login import current_user
 from octoprint.util import RepeatedTimer
 
 __author__ = "Thijs Bekke <thijsbekke@gmail.com>"
 __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agpl.html'
 __copyright__ = "Released under terms of the AGPLv3 License"
 __plugin_name__ = "Pushover"
+__plugin_pythoncompat__ = ">=2.7,<4"
 
 class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					 octoprint.plugin.SettingsPlugin,
@@ -74,7 +75,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 			# When we are testing the token, create a test notification
 			payload = {
-				"message": "pewpewpew!! OctoPrint works. " + self.get_emoji("rocket"),
+				"message": u''.join([u"pewpewpew!! OctoPrint works. ", self.get_emoji("rocket")]),
 				"token": data["api_key"],
 				"user": data["user_key"],
 			}
@@ -122,7 +123,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 				return True
 
-		except Exception, e:
+		except Exception as e:
 			raise ValueError("error while instantiating Pushover: %s" % str(e))
 
 		return False
@@ -462,14 +463,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		try:
 			if self._settings.get(["image"]) or ("image" in payload and payload["image"]):
 				files['attachment'] = ("image.jpg", self.image())
-		except Exception, e:
+		except Exception as e:
 			self._logger.info("Could not load image from url")
 
 		# Multiple try catches so it will always send a message if the image raises an Exception
 		try:
 			r = requests.post(self.api_url + "/messages.json", files=files, data=payload)
 			self._logger.debug("Response: %s" % str(r.content))
-		except Exception, e:
+		except Exception as e:
 			self._logger.info("Could not send message: %s" % str(e))
 
 	def on_after_startup(self):
@@ -479,7 +480,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		"""
 		try:
 			self.validate_pushover(self.get_token(), self._settings.get(["user_key"]))
-		except Exception, e:
+		except Exception as e:
 			self._logger.info(str(e))
 
 		self.restart_timer()
@@ -505,7 +506,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			thread = threading.Thread(target=self.validate_pushover, args=(self.get_token(), self._settings.get(["user_key"]),))
 			thread.daemon = True
 			thread.start()
-		except Exception, e:
+		except Exception as e:
 			self._logger.info(str(e))
 
 		self.restart_timer()
@@ -544,7 +545,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			image=True,
 			events=dict(
 				Scheduled=dict(
-					message="Scheduled Notification: {elapsed_time} Minutes Elapsed" + self.get_emoji("clock").encode("utf-8"),
+					message=u''.join([u"Scheduled Notification: {elapsed_time} Minutes Elapsed", self.get_emoji("clock")]),
 					priority="0",
 					token_required=True,
 					custom=True,
@@ -559,20 +560,20 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				),
 				TempReached=dict(
 					name="Temperature Reached",
-					message=self.get_emoji("temp").encode(
-						"utf-8") + "Temperature Reached! Bed: {bed_temp}/{bed_target} | Extruder: {e1_temp}/{e1_target}",
+					message=u''.join([self.get_emoji("temp"),
+						u"Temperature Reached! Bed: {bed_temp}/{bed_target} | Extruder: {e1_temp}/{e1_target}"]),
 					priority="0",
 					token_required=True
 				),
 				Shutdown=dict(
 					name="Printer Shutdown",
-					message="Bye bye, I am shutting down " + self.get_emoji("waving_hand_sign").encode("utf-8"),
+					message=u''.join([u"Bye bye, I am shutting down ", self.get_emoji("waving_hand_sign")]),
 					priority="0",
 					token_required=True
 				),
 				Startup=dict(
 					name="Printer Startup",
-					message="Hello, Let's print something nice today " + self.get_emoji("waving_hand_sign").encode("utf-8"),
+					message=u''.join([u"Hello, Let's print something nice today ", self.get_emoji("waving_hand_sign")]),
 					token_required=True
 				),
 				PrintStarted=dict(
@@ -608,7 +609,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				ZChange=dict(
 					name="After first couple of layer",
 					help="Send a notification when the 'first' couple of layers is done.",
-					message="First couple of layers are done " + self.get_emoji("four_leaf_clover").encode("utf-8"),
+					message=u''.join([u"First couple of layers are done ", self.get_emoji("four_leaf_clover")]),
 					priority=0,
 					token_required=True
 				),
@@ -645,7 +646,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		try:
 			r = requests.get(self.api_url + "/sounds.json?token="+ self.get_token())
 			return json.loads(r.content)["sounds"]
-		except Exception, e:
+		except Exception as e:
 			self._logger.debug(str(e))
 			return {}
 
@@ -683,5 +684,4 @@ def __plugin_load__():
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
 		"octoprint.comm.protocol.gcode.sent": __plugin_implementation__.sent_gcode
-
 	}
