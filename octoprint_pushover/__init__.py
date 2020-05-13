@@ -193,14 +193,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				self.bed_sent = True
 
 				self.event_message({
-					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
+					"message": self._settings.get(["events", "TempReached", "message"]).format(**locals())
 				})
 
 			if e1_target > 0 and e1_temp >= e1_target and self.e1_sent is False:
 				self.e1_sent = True
 
 				self.event_message({
-					"message": str(self._settings.get(["events", "TempReached", "message"]).format(**locals()))
+					"message": self._settings.get(["events", "TempReached", "message"]).format(**locals())
 				})
 
 	def on_print_progress(self, storage, path, progress):
@@ -212,7 +212,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0 and self.last_progress != progress:
 			self.last_progress = progress
 			self.event_message({
-				"message": str(self._settings.get(["events", "Progress", "message"]).format(percentage=progress))
+				"message": self._settings.get(["events", "Progress", "message"]).format(percentage=progress)
 			})
 
 	def get_mins_since_started(self):
@@ -232,8 +232,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if self.printing and scheduleMod and self.last_minute > 0 and self.last_minute % int(scheduleMod) == 0:
 
 			self.event_message({
-				"message": str(
-					self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.last_minute))
+				"message": self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.last_minute)
 			})
 
 	def sent_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
@@ -410,8 +409,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		# Does the event exists in the settings ? if not we don't want it
 		if not event in self.get_settings_defaults()["events"]:
 			return
-
-		self._logger.debug("Payload message: %s " % str(payload["message"]))
 
 		# Only continue when there is a priority
 		priority = self._settings.get(["events", event, "priority"])
