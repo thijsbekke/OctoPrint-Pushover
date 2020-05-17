@@ -207,10 +207,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		progressMod = self._settings.get(["events", "Progress", "mod"])
 
+		self._logger.debug("Priority: %s" % str(self._settings.get(["events", "Scheduled", "priority"])))
+
 		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0 and self.last_progress != progress:
 			self.last_progress = progress
 			self.event_message({
-				"message": self._settings.get(["events", "Progress", "message"]).format(percentage=progress)
+				"message": self._settings.get(["events", "Progress", "message"]).format(percentage=progress),
+				"priority": self._settings.get(["events", "Scheduled", "priority"])
 			})
 
 	def get_mins_since_started(self):
@@ -230,7 +233,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if self.printing and scheduleMod and self.last_minute > 0 and self.last_minute % int(scheduleMod) == 0:
 
 			self.event_message({
-				"message": self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.last_minute)
+				"message": self._settings.get(["events", "Scheduled", "message"]).format(elapsed_time=self.last_minute),
+				"priority": self._settings.get(["events", "Scheduled", "priority"])
 			})
 
 	def sent_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
@@ -450,6 +454,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			device = self._settings.get(["device"])
 			if device:
 				payload["device"] = device
+
+		if "priority" in payload:
+			self._logger.debug("Priority: %s" % str(payload["priority"]))
 
 		if self._printer_profile_manager is not None and "name" in self._printer_profile_manager.get_current_or_default():
 			payload["title"] = "Octoprint: %s" % self._printer_profile_manager.get_current_or_default()["name"]
