@@ -207,8 +207,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		progressMod = self._settings.get(["events", "Progress", "mod"])
 
-		self._logger.debug("Priority: %s" % str(self._settings.get(["events", "Scheduled", "priority"])))
-
 		if self.printing and progressMod and progress > 0 and progress % int(progressMod) == 0 and self.last_progress != progress:
 			self.last_progress = progress
 			self.event_message({
@@ -349,8 +347,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			return
 
 		# It is not actually the first layer, it was not my plan too create a lot of code for this feature
-		if payload["new"] < 1 or payload["old"] is None:
+		if payload["new"] < 2 or payload["old"] is None:
 			return
+
 
 		self.first_layer = False
 		return self._settings.get(["events", "ZChange", "message"]).format(**locals())
@@ -454,9 +453,6 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			device = self._settings.get(["device"])
 			if device:
 				payload["device"] = device
-
-		if "priority" in payload:
-			self._logger.debug("Priority: %s" % str(payload["priority"]))
 
 		if self._printer_profile_manager is not None and "name" in self._printer_profile_manager.get_current_or_default():
 			payload["title"] = "Octoprint: %s" % self._printer_profile_manager.get_current_or_default()["name"]
