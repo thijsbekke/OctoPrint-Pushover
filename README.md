@@ -83,6 +83,6 @@ G1 X108.789 Y104.770 E4.20140
 
 ### Support my efforts
 
-This is a fun project for me, and I do my best to support to support those that have issues with this plugin. If you want you can return the favor and leave me a tip trough [paypal](https://paypal.me/thijsbekke) ! 
+This is a fun project for me, and I do my best to support those that have issues with this plugin. If you want you can return the favor and leave me a tip trough [paypal](https://paypal.me/thijsbekke) ! 
 
 [![paypal](https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg)](https://paypal.me/thijsbekke)
