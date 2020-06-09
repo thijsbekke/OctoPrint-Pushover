@@ -120,7 +120,17 @@
             <span class="help-inline">{{ _('Send regular updates every y percent.') }}</span>
         </div>
     </div>
-
+    <div class="control-group">
+        <label class="control-label">{{ _('Priority') }}</label>
+        <div class="controls">
+            <select data-bind="value: settings.plugins.pushover.events.Scheduled.priority, disable: settings.plugins.pushover.events.Scheduled.token_required && !has_own_token()">
+                <option value="-2">{{ _('Lowest Priority') }}</option>
+                <option value="-1">{{ _('Low Priority') }}</option>
+                <option value="0">{{ _('Normal Priority') }}</option>
+                <option value="1">{{ _('High Priority') }}</option>
+            </select>
+        </div>
+    </div>
     <h4>{{ _('Event notifications') }}</h4>
 
     {% for key, value in plugin_pushover_events.items() if not value.hidden and not value.custom %}
