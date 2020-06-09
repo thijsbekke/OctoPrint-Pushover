@@ -255,6 +255,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 				self.last_minute = mss
 				self.check_schedule()
 
+		if gcode and gcode == "M600":
+			self.on_event("FilamentChange", None)
 
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
@@ -289,6 +291,19 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 		if "name" in payload:
 			file = os.path.basename(payload["name"])
 		return self._settings.get(["events", "PrintFailed", "message"]).format(**locals())
+
+	def FilamentChange(self, payload):
+		"""
+		When a M600 command is received the user is asked to change the filament
+		:param payload: 
+		:return: 
+		"""
+		m70_cmd = ""
+		if (self.m70_cmd != ""):
+			m70_cmd = "(" + self.m70_cmd.strip() + ")"
+
+		return self._settings.get(["events", "FilamentChange", "message"]).format(**locals())
+
 
 	def PrintPaused(self, payload):
 		"""
@@ -392,7 +407,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			payload = {}
 
 		# StatusNotPrinting
-		self._logger.debug("Got an event: " + event + " Payload: " + str(payload))
+		self._logger.debug("Got an event: %s, payload: %s" % (event, str(payload)))
 		# It's easier to ask forgiveness than to ask permission.
 		try:
 			# Method exists, and was used.
@@ -400,7 +415,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 			self._logger.debug("Event triggered: %s " % str(event))
 		except AttributeError:
-			self._logger.debug("event: " + event + " has an AttributeError" + str(payload))
+			self._logger.debug("event: %s has an AttributeError %s" % (event , str(payload)))
 			# By default the message is simple and does not need any formatting
 			payload["message"] = self._settings.get(["events", event, "message"])
 
@@ -602,6 +617,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 					help="Send a notification when a Waiting event is received. When a <code>m70</code> was sent "
 						 "to the printer, the message will be appended to the notification.",
 					message="Printer is Waiting {m70_cmd}",
+					priority=0
+				),
+				FilamentChange=dict(
+					name="Filament Change",
+					help="Send a notification when a M600 (Filament Change) command is received. When a <code>m70</code> was sent "
+						 "to the printer, the message will be appended to the notification.",
+					message="Please change the filament {m70_cmd}",
 					priority=0
 				),
 				ZChange=dict(
