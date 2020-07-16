@@ -7,6 +7,7 @@ import json
 import octoprint.plugin
 import octoprint.plugin
 import requests
+from requests.exceptions import HTTPError
 import datetime
 import octoprint.util
 from io import StringIO, BytesIO
@@ -139,7 +140,13 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			return None
 
 		self._logger.debug("Snapshot URL: %s " % str(snapshot_url))
-		image = requests.get(snapshot_url, stream=True).content
+		try:
+			image = requests.get(snapshot_url, stream=True).content
+		except HTTPError as http_err:
+			self._logger.info("HTTP error occured while trying to get image: %s " % str(http_err))
+		except Exception as err:
+			self._logger.info("Other error occurred while trying to get image: %s " % str(err))
+
 		hflip = self._settings.global_get(["webcam", "flipH"])
 		vflip = self._settings.global_get(["webcam", "flipV"])
 		rotate = self._settings.global_get(["webcam", "rotate90"])
@@ -477,7 +484,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			if self._settings.get(["image"]) or ("image" in payload and payload["image"]):
 				files['attachment'] = ("image.jpg", self.image())
 		except Exception as e:
-			self._logger.debug("Could not load image from url")
+			self._logger.info("Could not load image from url")
 
 		# Multiple try catches so it will always send a message if the image raises an Exception
 		try:
