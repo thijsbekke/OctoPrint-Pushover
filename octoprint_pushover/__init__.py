@@ -267,6 +267,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
+			
+		if gcode and gcode == "M117" and cmd[4:].strip() != "":
+			self.m70_cmd = cmd[4:]
 
 	# Start with event handling: http://docs.octoprint.org/en/master/events/index.html
 
