@@ -11,7 +11,7 @@ import requests
 import datetime
 import octoprint.util
 from PIL import Image
-from flask.ext.login import current_user
+from flask_login import LoginManager
 from octoprint.util import RepeatedTimer
 from threading import Timer
 import RPi.GPIO as GPIO
