@@ -100,8 +100,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def validate_pushover(self, api_key, user_key):
 		"""
 		Validate settings, this will do a post request to users/validate.json
-		:param user_key: 
-		:return: 
+		:param user_key:
+		:return:
 		"""
 		if not api_key:
 			raise ValueError("No api key provided")
@@ -109,7 +109,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 			raise ValueError("No user key provided")
 
 		try:
-			r = requests.post(self.api_url + "/users/validate.json", data={
+			r = requests.post(self.api_url + "/users/validate.json", timeout=1, data={
 				"token": api_key,
 				"user": user_key,
 			})
@@ -131,9 +131,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def image(self):
 		"""
-		Create an image by getting an image form the setting webcam-snapshot. 
-		Transpose this image according the settings and returns it 
-		:return: 
+		Create an image by getting an image form the setting webcam-snapshot.
+		Transpose this image according the settings and returns it
+		:return:
 		"""
 		snapshot_url = self._settings.global_get(["webcam", "snapshot"])
 		if not snapshot_url:
@@ -245,14 +245,14 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def sent_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
 		"""
 		M70 Gcode commands are used for sending a text when print is paused
-		:param comm_instance: 
-		:param phase: 
-		:param cmd: 
-		:param cmd_type: 
-		:param gcode: 
-		:param args: 
-		:param kwargs: 
-		:return: 
+		:param comm_instance:
+		:param phase:
+		:param cmd:
+		:param cmd_type:
+		:param gcode:
+		:param args:
+		:param kwargs:
+		:return:
 		"""
 
 		if gcode and gcode != "G1":
@@ -267,7 +267,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		if gcode and gcode == "M70":
 			self.m70_cmd = cmd[3:]
-			
+
 		if gcode and gcode == "M117" and cmd[4:].strip() != "":
 			self.m70_cmd = cmd[4:]
 
@@ -275,9 +275,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def PrintDone(self, payload):
 		"""
-		When the print is done, enhance the payload with the filename and the elased time and returns it 
-		:param payload: 
-		:return: 
+		When the print is done, enhance the payload with the filename and the elased time and returns it
+		:param payload:
+		:return:
 		"""
 		self.printing = False
 		self.last_minute = 0
@@ -293,9 +293,9 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def PrintFailed(self, payload):
 		"""
-		When the print is failed, enhance the payload with the filename and returns it 
-		:param payload: 
-		:return: 
+		When the print is failed, enhance the payload with the filename and returns it
+		:param payload:
+		:return:
 		"""
 		self.printing = False
 		if "name" in payload:
@@ -305,8 +305,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def FilamentChange(self, payload):
 		"""
 		When a M600 command is received the user is asked to change the filament
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
 		m70_cmd = ""
 		if (self.m70_cmd != ""):
@@ -318,8 +318,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def PrintPaused(self, payload):
 		"""
 		When the print is paused check if there is a m70 command, and replace that in the message.
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
 		m70_cmd = ""
 		if (self.m70_cmd != ""):
@@ -330,8 +330,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def Waiting(self, payload):
 		"""
 		Alias for PrintPaused
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
 		return self.PrintPaused(payload)
 
@@ -358,8 +358,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def ZChange(self, payload):
 		"""
 		ZChange event which send a notification, this does not work when printing from sd
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
 
 		if not self.has_own_token():
@@ -382,8 +382,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def Startup(self, payload):
 		"""
 		Event triggered when printer is started up
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
 		if not self.has_own_token():
 			return
@@ -392,8 +392,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def Shutdown(self, payload):
 		"""
 		PrinterShutdown
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
 		if not self.has_own_token():
 			return
@@ -402,8 +402,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def Error(self, payload):
 		"""
 		Only continue when the current state is printing
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
 		if(self.printing):
 			error = payload["error"]
@@ -448,8 +448,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def event_message(self, payload):
 		"""
 		Do send the notification to the cloud :)
-		:param payload: 
-		:return: 
+		:param payload:
+		:return:
 		"""
 		# Create an url, if the fqdn is not correct you can manually set it at your config.yaml
 		url = self._settings.get(["url"])
@@ -491,7 +491,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 		# Multiple try catches so it will always send a message if the image raises an Exception
 		try:
-			r = requests.post(self.api_url + "/messages.json", files=files, data=payload)
+			r = requests.post(self.api_url + "/messages.json", timeout=1, files=files, data=payload)
 			self._logger.debug("Response: %s" % str(r.content))
 		except Exception as e:
 			self._logger.info("Could not send message: %s" % str(e))
@@ -499,7 +499,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def on_after_startup(self):
 		"""
 		Valide settings on startup
-		:return: 
+		:return:
 		"""
 		try:
 			self.validate_pushover(self.get_token(), self._settings.get(["user_key"]))
@@ -520,8 +520,8 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 	def on_settings_save(self, data):
 		"""
 		Valide settings onm save
-		:param data: 
-		:return: 
+		:param data:
+		:return:
 		"""
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 		try:
@@ -674,7 +674,7 @@ class PushoverPlugin(octoprint.plugin.EventHandlerPlugin,
 
 	def get_sounds(self):
 		try:
-			r = requests.get(self.api_url + "/sounds.json?token="+ self.get_token())
+			r = requests.get(self.api_url + "/sounds.json?token="+ self.get_token(), timeout=1)
 			return json.loads(r.content)["sounds"]
 		except Exception as e:
 			self._logger.debug(str(e))
